@@ -1,13 +1,13 @@
  📦 Entregáveis da Fase 0 (o que tem que existir ao final)
 Você concluiu a Fase 0 quando tiver:
 
-1. Repo criado e organizado
+✅~1. Repo criado e organizado~
 2. **Next.js rodando local**
 3. **Deploy na Vercel funcionando**
-4. Arquivos:
-   - `ROADMAP.md`
-   - `GLOSSARIO.md`
-   - `DECISOES.md`
+✅~4. Arquivos:~
+   ~- `ROADMAP.md`~
+   ~- `GLOSSARIO.md`~
+   ~- `DECISOES.md`~
 5. Decisões registradas:
    - **Postgres**
    - **Prisma**
