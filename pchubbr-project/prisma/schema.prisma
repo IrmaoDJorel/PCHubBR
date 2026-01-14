@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Cpu {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  slug       String   @unique
+  brand      String
+  cores      Int
+  threads    Int
+  baseClock  Float
+  boostClock Float?
+  socket     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  offers         Offer[]
+  priceSnapshots PriceSnapshot[]
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  url       String
+  createdAt DateTime @default(now())
+
+  offers         Offer[]
+  priceSnapshots PriceSnapshot[]
+}
+
+model Offer {
+  id        String   @id @default(cuid())
+  cpuId     String
+  storeId   String
+  price     Float
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cpu   Cpu   @relation(fields: [cpuId], references: [id])
+  store Store @relation(fields: [storeId], references: [id])
+}
+
+model PriceSnapshot {
+  id        String   @id @default(cuid())
+  cpuId     String
+  storeId   String
+  price     Float
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  cpu   Cpu   @relation(fields: [cpuId], references: [id])
+  store Store @relation(fields: [storeId], references: [id])
+}
