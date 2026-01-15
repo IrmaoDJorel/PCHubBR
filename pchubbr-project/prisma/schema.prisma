@@ -39,7 +39,7 @@ model Offer {
   id        String   @id @default(cuid())
   cpuId     String
   storeId   String
-  price     Float
+  priceCents Int
   url       String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -52,10 +52,12 @@ model PriceSnapshot {
   id        String   @id @default(cuid())
   cpuId     String
   storeId   String
-  price     Float
+  priceCents Int
   date      DateTime
   createdAt DateTime @default(now())
 
   cpu   Cpu   @relation(fields: [cpuId], references: [id])
   store Store @relation(fields: [storeId], references: [id])
+
+  @@unique([cpuId, storeId, date])
 }
