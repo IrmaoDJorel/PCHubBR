@@ -104,13 +104,13 @@ async function main() {
     snapshots.push({
       cpuId: i512400f.id,
       storeId: kabum.id,
-      priceCents: 780 - (30 - day) * 1.1,
+      priceCents: Math.round((780 - (30 - day) * 1.1) * 100),
       date: daysAgo(day),
     });
     snapshots.push({
       cpuId: i512400f.id,
       storeId: terabyte.id,
-      priceCents: 770 - (30 - day) * 1.0,
+      priceCents: Math.round((770 - (30 - day) * 1.0) * 100),
       date: daysAgo(day),
     });
   }

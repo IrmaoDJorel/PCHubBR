@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PriceHistoryChart } from "@/components/ui/price-history-chart";
 
 type CpuDetail = {
   name: string;
@@ -80,32 +81,6 @@ export default function CpuPage() {
     if (!cpu?.offers?.length) return [];
     return [...cpu.offers].sort((a, b) => a.priceCents - b.priceCents);
   }, [cpu]);
-
-  const historyByStore = useMemo(() => {
-    // Agrupa histórico por loja pra ficar legível e “bonito”
-    const map = new Map<string, Snapshot[]>();
-    for (const s of history) {
-      const key = s.store.name;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(s);
-    }
-    return Array.from(map.entries()).map(([storeName, items]) => {
-      const sorted = [...items].sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-      );
-      const last = sorted[sorted.length - 1] ?? null;
-      const min = sorted.reduce((acc, cur) => Math.min(acc, cur.priceCents), Number.POSITIVE_INFINITY);
-      const max = sorted.reduce((acc, cur) => Math.max(acc, cur.priceCents), 0);
-
-      return {
-        storeName,
-        items: sorted,
-        lastPriceCents: last?.priceCents ?? null,
-        minPriceCents: Number.isFinite(min) ? min : null,
-        maxPriceCents: sorted.length ? max : null,
-      };
-    });
-  }, [history]);
 
   if (loading) {
     return (
@@ -298,59 +273,59 @@ export default function CpuPage() {
         </Card>
 
         {/* Histórico */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico (30 dias)</CardTitle>
-            <CardDescription>
-              Agrupado por loja. (Depois a gente transforma em gráfico.)
-            </CardDescription>
-          </CardHeader>
+          {history?.length ? (
+            <PriceHistoryChart history={history} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Histórico (30 dias)</CardTitle>
+                <CardDescription>Sem dados de histórico.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground">
+                  Ainda não há registros de preço para esta CPU.
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {/* Especificações Técnicas */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Especificações técnicas</CardTitle>
+                <CardDescription>Informações do catálogo (MVP).</CardDescription>
+              </CardHeader>
 
-          <CardContent>
-            {historyByStore.length ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                {historyByStore.map((g) => (
-                  <Card key={g.storeName} className="border-dashed">
-                    <CardHeader>
-                      <CardTitle className="text-base">{g.storeName}</CardTitle>
-                      <CardDescription>
-                        Último:{" "}
-                        <span className="font-semibold text-foreground">
-                          {g.lastPriceCents !== null ? formatBRLFromCents(g.lastPriceCents) : "—"}
-                        </span>
-                        {" • "}
-                        Min:{" "}
-                        {g.minPriceCents !== null ? formatBRLFromCents(g.minPriceCents) : "—"}
-                        {" • "}
-                        Máx:{" "}
-                        {g.maxPriceCents !== null ? formatBRLFromCents(g.maxPriceCents) : "—"}
-                      </CardDescription>
-                    </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 text-sm md:grid-cols-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Marca</span>
+                    <span className="font-medium">{cpu.brand}</span>
+                  </div>
 
-                    <CardContent className="space-y-2">
-                      {g.items.slice(-10).map((s, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            {new Date(s.date).toLocaleDateString("pt-BR")}
-                          </span>
-                          <span className="font-medium">{formatBRLFromCents(s.priceCents)}</span>
-                        </div>
-                      ))}
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Cores / Threads</span>
+                    <span className="font-medium">
+                      {cpu.cores}c / {cpu.threads}t
+                    </span>
+                  </div>
 
-                      {g.items.length > 10 ? (
-                        <div className="text-xs text-muted-foreground">
-                          Mostrando os últimos 10 de {g.items.length} registros.
-                        </div>
-                      ) : null}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">Sem histórico.</div>
-            )}
-          </CardContent>
-        </Card>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Socket</span>
+                    <span className="font-medium">{cpu.socket}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Clock base</span>
+                    <span className="font-medium">{formatClockGHz(cpu.baseClock)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Clock boost</span>
+                    <span className="font-medium">{formatClockGHz(cpu.boostClock)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
       </div>
     </main>
   );
