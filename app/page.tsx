@@ -64,9 +64,15 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-5xl p-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">PCHubBR</h1>
-        <p className="text-sm text-muted-foreground">Comparador de preços (MVP)</p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-semibold">PCHubBR</h1>
+          <p className="text-sm text-muted-foreground">Comparador de preços (MVP)</p>
+        </div>
+
+        <Button asChild variant="outline">
+          <Link href="/alerts">Meus alertas</Link>
+        </Button>
       </div>
 
       <Separator className="my-6" />

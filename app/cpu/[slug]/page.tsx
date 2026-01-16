@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PriceHistoryChart } from "@/components/ui/price-history-chart";
+import { Input } from "@/components/ui/input";
 
 type CpuDetail = {
   name: string;
@@ -31,7 +32,6 @@ type CpuDetail = {
 
   offers: Array<{ priceCents: number; url: string; store: { name: string } }>;
 
-  // Recomendo que sua API retorne assim (em centavos):
   minPriceCents?: number | null;
   maxPriceCents?: number | null;
 };
@@ -50,6 +50,42 @@ export default function CpuPage() {
   const [cpu, setCpu] = useState<CpuDetail | null>(null);
   const [history, setHistory] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Alerta de preço (MVP por email)
+  const [alertEmail, setAlertEmail] = useState("");
+  const [targetPrice, setTargetPrice] = useState("");
+  const [alertStatus, setAlertStatus] = useState<string | null>(null);
+  const [alertLoading, setAlertLoading] = useState(false);
+
+  async function createAlert() {
+    setAlertStatus(null);
+    setAlertLoading(true);
+
+    try {
+      const res = await fetch("/api/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: alertEmail,
+          cpuSlug: slug,
+          targetPrice,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAlertStatus(data?.error || "Erro ao criar alerta");
+        return;
+      }
+
+      setAlertStatus("Alerta criado ✅ (use “Testar job” para simular o disparo)");
+    } catch {
+      setAlertStatus("Falha de rede ao criar alerta");
+    } finally {
+      setAlertLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!slug) return;
@@ -179,7 +215,9 @@ export default function CpuPage() {
           <CardContent className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary">{cpu.brand}</Badge>
-              <Badge variant="outline">{cpu.cores}c/{cpu.threads}t</Badge>
+              <Badge variant="outline">
+                {cpu.cores}c/{cpu.threads}t
+              </Badge>
               <Badge variant="outline">Socket {cpu.socket}</Badge>
               <Badge variant="outline">Base {formatClockGHz(cpu.baseClock)}</Badge>
               <Badge variant="outline">Boost {formatClockGHz(cpu.boostClock)}</Badge>
@@ -217,13 +255,68 @@ export default function CpuPage() {
           </CardContent>
         </Card>
 
+        {/* Alerta de preço */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Alerta de preço</CardTitle>
+            <CardDescription>Receba aviso quando o preço ficar abaixo do valor alvo.</CardDescription>
+          </CardHeader>
+
+          <CardContent className="flex flex-col gap-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground">Seu email</div>
+                <Input
+                  value={alertEmail}
+                  onChange={(e) => setAlertEmail(e.target.value)}
+                  placeholder="seuemail@exemplo.com"
+                  inputMode="email"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground">Preço alvo (R$)</div>
+                <Input
+                  value={targetPrice}
+                  onChange={(e) => setTargetPrice(e.target.value)}
+                  placeholder="650,00"
+                  inputMode="decimal"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={createAlert} disabled={alertLoading || !alertEmail || !targetPrice}>
+                {alertLoading ? "Criando..." : "Criar alerta"}
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  setAlertStatus(null);
+                  await fetch("/api/jobs/check-alerts", { method: "POST" });
+                  setAlertStatus("Job executado ✅ (se o preço já estiver abaixo, o alerta dispara)");
+                }}
+              >
+                Testar job
+              </Button>
+            </div>
+
+            {alertStatus ? (
+              <div className="text-sm text-muted-foreground">{alertStatus}</div>
+            ) : null}
+
+            <div className="text-xs text-muted-foreground">
+              Dica: use um alvo <strong>acima</strong> do melhor preço atual para ver o disparo rápido no MVP.
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Ofertas */}
         <Card id="offers">
           <CardHeader>
             <CardTitle>Ofertas atuais</CardTitle>
-            <CardDescription>
-              Ordenadas do menor para o maior preço.
-            </CardDescription>
+            <CardDescription>Ordenadas do menor para o maior preço.</CardDescription>
           </CardHeader>
 
           <CardContent>
@@ -239,7 +332,10 @@ export default function CpuPage() {
 
                 <TableBody>
                   {offersSorted.map((o, i) => {
-                    const isBest = bestOffer && o.store.name === bestOffer.store.name && o.priceCents === bestOffer.priceCents;
+                    const isBest =
+                      bestOffer &&
+                      o.store.name === bestOffer.store.name &&
+                      o.priceCents === bestOffer.priceCents;
 
                     return (
                       <TableRow key={i}>
@@ -273,59 +369,60 @@ export default function CpuPage() {
         </Card>
 
         {/* Histórico */}
-          {history?.length ? (
-            <PriceHistoryChart history={history} />
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Histórico (30 dias)</CardTitle>
-                <CardDescription>Sem dados de histórico.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-muted-foreground">
-                  Ainda não há registros de preço para esta CPU.
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {/* Especificações Técnicas */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Especificações técnicas</CardTitle>
-                <CardDescription>Informações do catálogo (MVP).</CardDescription>
-              </CardHeader>
+        {history?.length ? (
+          <PriceHistoryChart history={history} />
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Histórico (30 dias)</CardTitle>
+              <CardDescription>Sem dados de histórico.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-muted-foreground">
+                Ainda não há registros de preço para esta CPU.
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-              <CardContent>
-                <div className="grid gap-3 text-sm md:grid-cols-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Marca</span>
-                    <span className="font-medium">{cpu.brand}</span>
-                  </div>
+        {/* Especificações Técnicas */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Especificações técnicas</CardTitle>
+            <CardDescription>Informações do catálogo (MVP).</CardDescription>
+          </CardHeader>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Cores / Threads</span>
-                    <span className="font-medium">
-                      {cpu.cores}c / {cpu.threads}t
-                    </span>
-                  </div>
+          <CardContent>
+            <div className="grid gap-3 text-sm md:grid-cols-2">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Marca</span>
+                <span className="font-medium">{cpu.brand}</span>
+              </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Socket</span>
-                    <span className="font-medium">{cpu.socket}</span>
-                  </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Cores / Threads</span>
+                <span className="font-medium">
+                  {cpu.cores}c / {cpu.threads}t
+                </span>
+              </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Clock base</span>
-                    <span className="font-medium">{formatClockGHz(cpu.baseClock)}</span>
-                  </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Socket</span>
+                <span className="font-medium">{cpu.socket}</span>
+              </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Clock boost</span>
-                    <span className="font-medium">{formatClockGHz(cpu.boostClock)}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Clock base</span>
+                <span className="font-medium">{formatClockGHz(cpu.baseClock)}</span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Clock boost</span>
+                <span className="font-medium">{formatClockGHz(cpu.boostClock)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );

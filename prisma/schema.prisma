@@ -23,6 +23,8 @@ model Cpu {
 
   offers         Offer[]
   priceSnapshots PriceSnapshot[]
+
+  alerts PriceAlert[]
 }
 
 model Store {
@@ -36,28 +38,68 @@ model Store {
 }
 
 model Offer {
-  id        String   @id @default(cuid())
-  cpuId     String
-  storeId   String
+  id         String   @id @default(cuid())
+  cpuId      String
+  storeId    String
   priceCents Int
-  url       String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  url        String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   cpu   Cpu   @relation(fields: [cpuId], references: [id])
   store Store @relation(fields: [storeId], references: [id])
 }
 
 model PriceSnapshot {
-  id        String   @id @default(cuid())
-  cpuId     String
-  storeId   String
+  id         String   @id @default(cuid())
+  cpuId      String
+  storeId    String
   priceCents Int
-  date      DateTime
-  createdAt DateTime @default(now())
+  date       DateTime
+  createdAt  DateTime @default(now())
 
   cpu   Cpu   @relation(fields: [cpuId], references: [id])
   store Store @relation(fields: [storeId], references: [id])
 
   @@unique([cpuId, storeId, date])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  alerts PriceAlert[]
+}
+
+model PriceAlert {
+  id               String    @id @default(cuid())
+  userId           String
+  cpuId            String
+  targetPriceCents Int
+  isActive         Boolean   @default(true)
+  triggeredAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user   User              @relation(fields: [userId], references: [id])
+  cpu    Cpu               @relation(fields: [cpuId], references: [id])
+  events PriceAlertEvent[]
+
+  @@unique([userId, cpuId, targetPriceCents])
+  @@index([cpuId, isActive])
+}
+
+model PriceAlertEvent {
+  id         String   @id @default(cuid())
+  alertId    String
+  priceCents Int
+  storeName  String?
+  createdAt  DateTime @default(now())
+
+  alert PriceAlert @relation(fields: [alertId], references: [id])
+
+  @@index([alertId, createdAt])
 }
