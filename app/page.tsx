@@ -70,9 +70,14 @@ export default function Home() {
           <p className="text-sm text-muted-foreground">Comparador de preços (MVP)</p>
         </div>
 
-        <Button asChild variant="outline">
-          <Link href="/alerts">Meus alertas</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href="/login">Login</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/alerts">Meus alertas</Link>
+          </Button>
+        </div>
       </div>
 
       <Separator className="my-6" />

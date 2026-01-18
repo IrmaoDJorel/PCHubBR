@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { formatBRLFromCents } from "@/lib/money";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
@@ -26,23 +24,16 @@ function formatDateTimeBR(iso: string) {
 }
 
 export default function AlertsPage() {
-  const searchParams = useSearchParams();
-
-  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [status, setStatus] = useState<string | null>(null);
 
-  const emailNormalized = useMemo(() => email.trim().toLowerCase(), [email]);
-
-  async function loadAlerts(forEmail?: string) {
-    const e = (forEmail ?? emailNormalized).trim().toLowerCase();
-
+  async function loadAlerts() {
     setStatus(null);
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/alerts?email=${encodeURIComponent(e)}`);
+      const res = await fetch("/api/alerts");
       const text = await res.text();
 
       let data: any = null;
@@ -59,7 +50,7 @@ export default function AlertsPage() {
       }
 
       setAlerts(Array.isArray(data) ? data : []);
-      if (!data?.length) setStatus("Nenhum alerta encontrado para este email.");
+      if (!data?.length) setStatus("Você ainda não tem alertas.");
     } catch {
       setStatus("Falha de rede ao carregar alertas");
       setAlerts([]);
@@ -76,7 +67,7 @@ export default function AlertsPage() {
       const res = await fetch("/api/alerts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailNormalized, alertId, action }),
+        body: JSON.stringify({ alertId, action }),
       });
 
       const text = await res.text();
@@ -96,7 +87,7 @@ export default function AlertsPage() {
 
       if (action === "deactivate") setStatus("Alerta desativado ✅");
       if (action === "activate") setStatus("Alerta reativado ✅");
-      if (action === "rearm") setStatus("Alerta rearmado ✅ (pode disparar novamente)");
+      if (action === "rearm") setStatus("Alerta rearmado ✅");
     } catch {
       setStatus("Falha de rede ao atualizar alerta");
     } finally {
@@ -112,7 +103,7 @@ export default function AlertsPage() {
       const res = await fetch("/api/alerts", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailNormalized, alertId }),
+        body: JSON.stringify({ alertId }),
       });
 
       const text = await res.text();
@@ -137,19 +128,20 @@ export default function AlertsPage() {
     }
   }
 
-  // ✅ Autofill + autoload via /alerts?email=...
-  useEffect(() => {
-    const qEmail = (searchParams.get("email") || "").trim().toLowerCase();
-    if (!qEmail) return;
-
-    setEmail(qEmail);
-
-    if (qEmail.includes("@")) {
-      // carrega imediatamente usando o email da query para evitar dependência do setState
-      void loadAlerts(qEmail);
+  async function logout() {
+    setStatus(null);
+    setLoading(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/login";
+    } finally {
+      setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }
+
+  useEffect(() => {
+    void loadAlerts();
+  }, []);
 
   return (
     <main className="mx-auto max-w-5xl p-6">
@@ -157,52 +149,44 @@ export default function AlertsPage() {
         <Button asChild variant="outline">
           <Link href="/">← Voltar</Link>
         </Button>
+
+        <Button variant="outline" onClick={logout} disabled={loading}>
+          Sair
+        </Button>
       </div>
 
       <div className="mt-6 grid gap-4">
         <Card>
           <CardHeader>
             <CardTitle>Meus alertas</CardTitle>
-            <CardDescription>
-              MVP: informe seu email para listar e gerenciar alertas. (Login virá depois.)
-            </CardDescription>
+            <CardDescription>Gerencie seus alertas (ativo, rearmar, excluir).</CardDescription>
           </CardHeader>
 
           <CardContent className="flex flex-col gap-3">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center">
-              <Input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seuemail@exemplo.com"
-                inputMode="email"
-                className="md:max-w-sm"
-              />
+            <div className="flex gap-2">
+              <Button onClick={loadAlerts} disabled={loading}>
+                {loading ? "Carregando..." : "Recarregar"}
+              </Button>
 
-              <div className="flex gap-2">
-                <Button onClick={() => loadAlerts()} disabled={loading || !emailNormalized.includes("@")}>
-                  {loading ? "Carregando..." : "Carregar"}
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    setStatus(null);
-                    setLoading(true);
-                    try {
-                      await fetch("/api/jobs/check-alerts", { method: "POST" });
-                      setStatus("Verificação executada ✅");
-                      if (emailNormalized.includes("@")) await loadAlerts();
-                    } catch {
-                      setStatus("Falha de rede ao executar verificação");
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  disabled={loading}
-                >
-                  Rodar verificação
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  setStatus(null);
+                  setLoading(true);
+                  try {
+                    await fetch("/api/jobs/check-alerts", { method: "POST" });
+                    setStatus("Verificação executada ✅");
+                    await loadAlerts();
+                  } catch {
+                    setStatus("Falha de rede ao executar verificação");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+              >
+                Rodar verificação
+              </Button>
             </div>
 
             {status ? <div className="text-sm text-muted-foreground">{status}</div> : null}
@@ -286,11 +270,6 @@ export default function AlertsPage() {
                       <Button variant="destructive" onClick={() => deleteAlert(a.id)} disabled={loading}>
                         Excluir
                       </Button>
-                    </div>
-
-                    <div className="text-xs text-muted-foreground">
-                      Dica: você pode compartilhar esta página já com seu email usando{" "}
-                      <span className="font-medium">/alerts?email=seuemail@...</span>
                     </div>
                   </CardContent>
                 </Card>
