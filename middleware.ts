@@ -4,8 +4,9 @@ import type { NextRequest } from "next/server";
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (pathname.startsWith("/alerts")) {
+  if (pathname.startsWith("/alerts") || pathname.startsWith("/profile")) {
     const token = req.cookies.get("pchubbr_session")?.value;
+
     if (!token) {
       const url = req.nextUrl.clone();
       url.pathname = "/login";
@@ -17,5 +18,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/alerts/:path*"],
+  matcher: ["/alerts/:path*", "/profile/:path*"],
 };

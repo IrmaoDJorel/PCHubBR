@@ -33,11 +33,21 @@ export default function Home() {
   const [brand, setBrand] = useState<"ALL" | "AMD" | "Intel">("ALL");
   const [sort, setSort] = useState<SortKey>("priceAsc");
 
+  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+
   useEffect(() => {
     fetch("/api/cpus")
       .then((r) => r.json())
       .then(setCpus)
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+  fetch("/api/session")
+    .then((r) => r.json())
+    .then((d) => setLoggedIn(Boolean(d?.loggedIn)))
+    .finally(() => setSessionLoaded(true));
   }, []);
 
   const filtered = useMemo(() => {
@@ -71,12 +81,20 @@ export default function Home() {
         </div>
 
         <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link href="/login">Login</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/alerts">Meus alertas</Link>
-          </Button>
+          {!sessionLoaded ? null : loggedIn ? (
+            <Button asChild>
+              <Link href="/profile">Minha conta</Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild variant="outline">
+                <Link href="/login">Entrar</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/register">Criar conta</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

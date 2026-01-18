@@ -41,7 +41,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/alerts");
+      router.push("/");
       router.refresh();
     } catch {
       setStatus("Falha de rede ao entrar");
