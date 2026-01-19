@@ -10,16 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PriceHistoryChart } from "@/components/ui/price-history-chart";
 import { Input } from "@/components/ui/input";
+
+import { FavoriteCPUButton } from "@/components/ui/FavoriteCPUButton";
 
 type CpuDetail = {
   name: string;
@@ -51,14 +46,40 @@ export default function CpuPage() {
   const [history, setHistory] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Alerta de preço (MVP por email)
-  const [alertEmail, setAlertEmail] = useState("");
+  // Sessão (para UX: esconder email e redirecionar para login quando necessário)
+  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+
+  // Alerta de preço (agora é por usuário logado)
   const [targetPrice, setTargetPrice] = useState("");
   const [alertStatus, setAlertStatus] = useState<string | null>(null);
   const [alertLoading, setAlertLoading] = useState(false);
 
+  async function loadSession() {
+    try {
+      const res = await fetch("/api/session");
+      const data = await res.json().catch(() => null);
+      setLoggedIn(Boolean(data?.loggedIn));
+    } catch {
+      setLoggedIn(false);
+    } finally {
+      setSessionLoaded(true);
+    }
+  }
+
   async function createAlert() {
     setAlertStatus(null);
+
+    if (!sessionLoaded) {
+      setAlertStatus("Carregando sessão...");
+      return;
+    }
+
+    if (!loggedIn) {
+      window.location.href = `/login`;
+      return;
+    }
+
     setAlertLoading(true);
 
     try {
@@ -66,26 +87,35 @@ export default function CpuPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: alertEmail,
           cpuSlug: slug,
           targetPrice,
         }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+
+      if (res.status === 401) {
+        window.location.href = `/login`;
+        return;
+      }
 
       if (!res.ok) {
         setAlertStatus(data?.error || "Erro ao criar alerta");
         return;
       }
 
-      setAlertStatus("Alerta criado ✅ (use “Testar job” para simular o disparo)");
+      setAlertStatus("Alerta criado ✅ (gerencie em Minha conta)");
     } catch {
       setAlertStatus("Falha de rede ao criar alerta");
     } finally {
       setAlertLoading(false);
     }
   }
+
+  useEffect(() => {
+    void loadSession();
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
@@ -192,9 +222,7 @@ export default function CpuPage() {
         {bestOffer ? (
           <div className="text-sm text-muted-foreground">
             Melhor oferta:{" "}
-            <span className="font-semibold text-foreground">
-              {formatBRLFromCents(bestOffer.priceCents)}
-            </span>{" "}
+            <span className="font-semibold text-foreground">{formatBRLFromCents(bestOffer.priceCents)}</span>{" "}
             <span>({bestOffer.store.name})</span>
           </div>
         ) : (
@@ -229,15 +257,13 @@ export default function CpuPage() {
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Melhor oferta</div>
-                <div className="text-2xl font-semibold">
-                  {bestOffer ? formatBRLFromCents(bestOffer.priceCents) : "—"}
-                </div>
+                <div className="text-2xl font-semibold">{bestOffer ? formatBRLFromCents(bestOffer.priceCents) : "—"}</div>
                 <div className="text-sm text-muted-foreground">
                   {bestOffer ? bestOffer.store.name : "Nenhuma loja com oferta ativa"}
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {bestOffer ? (
                   <Button asChild>
                     <a href={bestOffer.url} target="_blank" rel="noreferrer">
@@ -247,33 +273,31 @@ export default function CpuPage() {
                 ) : (
                   <Button disabled>Ir para a oferta</Button>
                 )}
+
                 <Button variant="outline" asChild>
                   <a href="#offers">Ver todas</a>
                 </Button>
+
+                {/* Favorito */}
+                <FavoriteCPUButton cpuSlug={slug} />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Alerta de preço */}
+        {/* Alerta de preço (por usuário logado) */}
         <Card>
           <CardHeader>
             <CardTitle>Alerta de preço</CardTitle>
-            <CardDescription>Receba aviso quando o preço ficar abaixo do valor alvo.</CardDescription>
+            <CardDescription>
+              {loggedIn
+                ? "Crie um alerta e gerencie em Minha conta."
+                : "Faça login para criar alertas (MVP)."}
+            </CardDescription>
           </CardHeader>
 
           <CardContent className="flex flex-col gap-3">
             <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <div className="text-sm text-muted-foreground">Seu email</div>
-                <Input
-                  value={alertEmail}
-                  onChange={(e) => setAlertEmail(e.target.value)}
-                  placeholder="seuemail@exemplo.com"
-                  inputMode="email"
-                />
-              </div>
-
               <div className="space-y-2">
                 <div className="text-sm text-muted-foreground">Preço alvo (R$)</div>
                 <Input
@@ -283,28 +307,29 @@ export default function CpuPage() {
                   inputMode="decimal"
                 />
               </div>
+
+              <div className="flex items-end gap-2">
+                <Button onClick={createAlert} disabled={alertLoading || !targetPrice}>
+                  {alertLoading ? "Criando..." : loggedIn ? "Criar alerta" : "Entrar para criar"}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    setAlertStatus(null);
+                    await fetch("/api/jobs/check-alerts", { method: "POST" });
+
+                    setAlertStatus(
+                      "Job executado ✅ (se houver alertas com preço abaixo do alvo, eles disparam)"
+                    );
+                  }}
+                >
+                  Testar job
+                </Button>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={createAlert} disabled={alertLoading || !alertEmail || !targetPrice}>
-                {alertLoading ? "Criando..." : "Criar alerta"}
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  setAlertStatus(null);
-                  await fetch("/api/jobs/check-alerts", { method: "POST" });
-                  setAlertStatus("Job executado ✅ (se o preço já estiver abaixo, o alerta dispara)");
-                }}
-              >
-                Testar job
-              </Button>
-            </div>
-
-            {alertStatus ? (
-              <div className="text-sm text-muted-foreground">{alertStatus}</div>
-            ) : null}
+            {alertStatus ? <div className="text-sm text-muted-foreground">{alertStatus}</div> : null}
 
             <div className="text-xs text-muted-foreground">
               Dica: use um alvo <strong>acima</strong> do melhor preço atual para ver o disparo rápido no MVP.
@@ -346,9 +371,7 @@ export default function CpuPage() {
                           </div>
                         </TableCell>
 
-                        <TableCell className="text-right font-semibold">
-                          {formatBRLFromCents(o.priceCents)}
-                        </TableCell>
+                        <TableCell className="text-right font-semibold">{formatBRLFromCents(o.priceCents)}</TableCell>
 
                         <TableCell className="text-right">
                           <Button asChild size="sm" variant={isBest ? "default" : "outline"}>
@@ -378,9 +401,7 @@ export default function CpuPage() {
               <CardDescription>Sem dados de histórico.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-sm text-muted-foreground">
-                Ainda não há registros de preço para esta CPU.
-              </div>
+              <div className="text-sm text-muted-foreground">Ainda não há registros de preço para esta CPU.</div>
             </CardContent>
           </Card>
         )}

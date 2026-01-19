@@ -28,6 +28,14 @@ type AlertItem = {
   events: Array<{ priceCents: number; storeName: string | null; createdAt: string }>;
 };
 
+type FavoriteItem = {
+  id: string;
+  itemType: "CPU";
+  itemId: string;
+  createdAt: string;
+  cpu?: { id: string; name: string; slug: string } | null;
+};
+
 function formatDateTimeBR(iso: string) {
   return new Date(iso).toLocaleString("pt-BR");
 }
@@ -38,6 +46,7 @@ export default function ProfilePage() {
 
   const [me, setMe] = useState<Me | null>(null);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
 
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -50,13 +59,19 @@ export default function ProfilePage() {
     setLoading(true);
 
     try {
-      const [meRes, alertsRes] = await Promise.all([fetch("/api/me"), fetch("/api/alerts")]);
+      const [meRes, alertsRes, favRes] = await Promise.all([
+        fetch("/api/me"),
+        fetch("/api/alerts"),
+        fetch("/api/favorites"),
+      ]);
 
       const meText = await meRes.text();
       const alertsText = await alertsRes.text();
+      const favText = await favRes.text();
 
       const meData = meText ? JSON.parse(meText) : null;
       const alertsData = alertsText ? JSON.parse(alertsText) : null;
+      const favData = favText ? JSON.parse(favText) : null;
 
       if (!meRes.ok) {
         setStatus(meData?.error || "Erro ao carregar perfil");
@@ -72,6 +87,12 @@ export default function ProfilePage() {
         setAlerts([]);
       } else {
         setAlerts(Array.isArray(alertsData) ? alertsData : []);
+      }
+
+      if (!favRes.ok) {
+        setFavorites([]);
+      } else {
+        setFavorites(Array.isArray(favData) ? favData : []);
       }
     } catch {
       setStatus("Falha de rede ao carregar dados");
@@ -165,33 +186,61 @@ export default function ProfilePage() {
     }
   }
 
-    async function deleteAlert(alertId: string) {
+  async function deleteAlert(alertId: string) {
     setStatus(null);
     setLoading(true);
 
     try {
-        const res = await fetch("/api/alerts", {
+      const res = await fetch("/api/alerts", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ alertId }),
-        });
+      });
 
-        const text = await res.text();
-        const data = text ? JSON.parse(text) : null;
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
 
-        if (!res.ok) {
+      if (!res.ok) {
         setStatus(data?.error || "Erro ao excluir alerta");
         return;
-        }
+      }
 
-        await loadAll();
-        setStatus("Alerta excluído ✅");
+      await loadAll();
+      setStatus("Alerta excluído ✅");
     } catch {
-        setStatus("Falha de rede ao excluir alerta");
+      setStatus("Falha de rede ao excluir alerta");
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
+  }
+
+  async function removeFavoriteCPU(cpuSlug: string) {
+    setStatus(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/favorites", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemType: "CPU", cpuSlug }),
+      });
+
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+
+      if (!res.ok) {
+        setStatus(data?.error || "Erro ao remover favorito");
+        return;
+      }
+
+      await loadAll();
+      setStatus("Favorito removido ✅");
+    } catch {
+      setStatus("Falha de rede ao remover favorito");
+    } finally {
+      setLoading(false);
     }
+  }
 
   async function logout() {
     setLoading(true);
@@ -284,6 +333,57 @@ export default function ProfilePage() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Meus favoritos</CardTitle>
+            <CardDescription>Peças salvas para acompanhar depois.</CardDescription>
+          </CardHeader>
+
+          <CardContent className="flex flex-col gap-3">
+            {favorites.length ? (
+              <div className="grid gap-3">
+                {favorites.map((f) => (
+                  <div
+                    key={f.id}
+                    className="rounded-md border p-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">{f.itemType}</div>
+                      <div className="font-medium">{f.cpu?.name ?? "Item indisponível"}</div>
+                      {f.cpu?.slug ? (
+                        <div className="text-xs text-muted-foreground">Slug: {f.cpu.slug}</div>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {f.cpu?.slug ? (
+                        <Button asChild variant="outline">
+                          <Link href={`/cpu/${f.cpu.slug}`}>Ver CPU</Link>
+                        </Button>
+                      ) : null}
+
+                      {f.cpu?.slug ? (
+                        <Button
+                          variant="destructive"
+                          onClick={() => {
+                            const ok = confirm("Remover este favorito?");
+                            if (ok) removeFavoriteCPU(f.cpu!.slug);
+                          }}
+                          disabled={loading}
+                        >
+                          Remover
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Você ainda não favoritou nada.</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Meus alertas</CardTitle>
             <CardDescription>Gerencie alertas diretamente pelo perfil.</CardDescription>
           </CardHeader>
@@ -300,13 +400,15 @@ export default function ProfilePage() {
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div className="space-y-1">
                           <div className="font-medium">{a.cpu.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            Criado em {formatDateTimeBR(a.createdAt)}
-                          </div>
+                          <div className="text-xs text-muted-foreground">Criado em {formatDateTimeBR(a.createdAt)}</div>
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          {a.isActive ? <Badge variant="secondary">Ativo</Badge> : <Badge variant="outline">Inativo</Badge>}
+                          {a.isActive ? (
+                            <Badge variant="secondary">Ativo</Badge>
+                          ) : (
+                            <Badge variant="outline">Inativo</Badge>
+                          )}
                           {fired ? <Badge>Disparado</Badge> : <Badge variant="outline">Aguardando</Badge>}
                           <Badge variant="outline">Alvo: {formatBRLFromCents(a.targetPriceCents)}</Badge>
                         </div>
@@ -316,7 +418,9 @@ export default function ProfilePage() {
 
                       <div className="text-sm text-muted-foreground">
                         {lastEvent
-                          ? `Último evento: ${formatBRLFromCents(lastEvent.priceCents)}${lastEvent.storeName ? ` (${lastEvent.storeName})` : ""} • ${formatDateTimeBR(lastEvent.createdAt)}`
+                          ? `Último evento: ${formatBRLFromCents(lastEvent.priceCents)}${
+                              lastEvent.storeName ? ` (${lastEvent.storeName})` : ""
+                            } • ${formatDateTimeBR(lastEvent.createdAt)}`
                           : "Nenhum evento ainda."}
                       </div>
 
@@ -342,11 +446,14 @@ export default function ProfilePage() {
                         </Button>
 
                         <Button
-                            variant="destructive"
-                            onClick={() => deleteAlert(a.id)}
-                            disabled={loading}
-                            >
-                            Excluir
+                          variant="destructive"
+                          onClick={() => {
+                            const ok = confirm("Excluir este alerta? Essa ação não pode ser desfeita.");
+                            if (ok) deleteAlert(a.id);
+                          }}
+                          disabled={loading}
+                        >
+                          Excluir
                         </Button>
                       </div>
                     </div>
@@ -361,4 +468,4 @@ export default function ProfilePage() {
       </div>
     </main>
   );
-}   
+}

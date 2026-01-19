@@ -2,12 +2,32 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { getSessionCookieName, signSessionToken } from "@/lib/auth";
+import { rateLimit } from "@/lib/rateLimit";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+function getClientIp(request: Request) {
+  // Em produção (Vercel/Proxy), vem no x-forwarded-for (primeiro IP é o cliente)
+  const xff = request.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+
+  // Fallback local
+  return "local";
+}
+
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+
+  const rl = rateLimit(`login:${ip}`, 10, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Muitas tentativas. Tente novamente em alguns instantes." },
+      { status: 429 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
 
   const loginRaw = String(body?.login || "").trim();
