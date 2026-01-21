@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
 import { formatBRLFromCents } from "@/lib/money";
 
 import { Badge } from "@/components/ui/badge";
@@ -11,46 +10,37 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PriceHistoryChart } from "@/components/ui/price-history-chart";
 import { Input } from "@/components/ui/input";
+import { FavoriteProductButton } from "@/components/ui/FavoriteProductButton";
 
-import { FavoriteCPUButton } from "@/components/ui/FavoriteCPUButton";
-
-type CpuDetail = {
+type ProductDetail = {
+  id: string;
   name: string;
+  slug: string;
   brand: string;
-  cores: number;
-  threads: number;
-  baseClock: number;
-  boostClock?: number | null;
-  socket: string;
-
+  type: string;
+  specsJson: any;
   offers: Array<{ priceCents: number; url: string; store: { name: string } }>;
-
-  minPriceCents?: number | null;
-  maxPriceCents?: number | null;
+  priceSnapshots: Array<{ priceCents: number; date: string; store: { name: string } }>;
+  gpu?: any;
+  motherboard?: any;
 };
-
-type Snapshot = { priceCents: number; date: string; store: { name: string } };
 
 function formatClockGHz(n?: number | null) {
   if (n === null || n === undefined) return "—";
   return `${n.toFixed(1)} GHz`;
 }
 
-export default function CpuPage() {
-  const params = useParams();
-  const slug = params?.slug as string;
-
-  const [cpu, setCpu] = useState<CpuDetail | null>(null);
-  const [history, setHistory] = useState<Snapshot[]>([]);
+export default function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+  const [slug, setSlug] = useState<string>("");
+  const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Sessão (para UX: esconder email e redirecionar para login quando necessário)
+  // Sessão
   const [loggedIn, setLoggedIn] = useState<boolean>(false);
   const [sessionLoaded, setSessionLoaded] = useState(false);
 
-  // Alerta de preço (agora é por usuário logado)
+  // Alerta (só para CPUs por enquanto)
   const [targetPrice, setTargetPrice] = useState("");
   const [alertStatus, setAlertStatus] = useState<string | null>(null);
   const [alertLoading, setAlertLoading] = useState(false);
@@ -68,6 +58,11 @@ export default function CpuPage() {
   }
 
   async function createAlert() {
+    if (product?.type !== "CPU") {
+      setAlertStatus("Alertas disponíveis apenas para CPUs (em breve para outros)");
+      return;
+    }
+
     setAlertStatus(null);
 
     if (!sessionLoaded) {
@@ -114,6 +109,10 @@ export default function CpuPage() {
   }
 
   useEffect(() => {
+    params.then((p) => setSlug(p.slug));
+  }, [params]);
+
+  useEffect(() => {
     void loadSession();
   }, []);
 
@@ -122,31 +121,26 @@ export default function CpuPage() {
 
     setLoading(true);
 
-    Promise.all([
-      fetch(`/api/cpus/${slug}`).then((r) => r.json()),
-      fetch(`/api/cpus/${slug}/history?days=30`).then((r) => r.json()),
-    ])
-      .then(([cpuData, hist]) => {
-        setCpu(cpuData);
-        setHistory(hist);
-      })
+    fetch(`/api/products/${slug}`)
+      .then((r) => r.json())
+      .then(setProduct)
       .finally(() => setLoading(false));
   }, [slug]);
 
   const bestOffer = useMemo(() => {
-    if (!cpu?.offers?.length) return null;
+    if (!product?.offers?.length) return null;
 
-    let best = cpu.offers[0];
-    for (const o of cpu.offers) {
+    let best = product.offers[0];
+    for (const o of product.offers) {
       if (o.priceCents < best.priceCents) best = o;
     }
     return best;
-  }, [cpu]);
+  }, [product]);
 
   const offersSorted = useMemo(() => {
-    if (!cpu?.offers?.length) return [];
-    return [...cpu.offers].sort((a, b) => a.priceCents - b.priceCents);
-  }, [cpu]);
+    if (!product?.offers?.length) return [];
+    return [...product.offers].sort((a, b) => a.priceCents - b.priceCents);
+  }, [product]);
 
   if (loading) {
     return (
@@ -194,12 +188,12 @@ export default function CpuPage() {
     );
   }
 
-  if (!cpu) {
+  if (!product) {
     return (
       <main className="mx-auto max-w-5xl p-6">
         <Card>
           <CardHeader>
-            <CardTitle>CPU não encontrada</CardTitle>
+            <CardTitle>Produto não encontrado</CardTitle>
             <CardDescription>Verifique o link ou volte para a lista.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -231,29 +225,42 @@ export default function CpuPage() {
       </div>
 
       <div className="mt-6 grid gap-4">
-        {/* Header do “produto” */}
+        {/* Header */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">{cpu.name}</CardTitle>
+            <CardTitle className="text-xl">{product.name}</CardTitle>
             <CardDescription>
-              {cpu.brand} • {cpu.cores}c/{cpu.threads}t • Socket {cpu.socket}
+              {product.brand} • {product.type}
             </CardDescription>
           </CardHeader>
 
           <CardContent className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">{cpu.brand}</Badge>
-              <Badge variant="outline">
-                {cpu.cores}c/{cpu.threads}t
-              </Badge>
-              <Badge variant="outline">Socket {cpu.socket}</Badge>
-              <Badge variant="outline">Base {formatClockGHz(cpu.baseClock)}</Badge>
-              <Badge variant="outline">Boost {formatClockGHz(cpu.boostClock)}</Badge>
+              <Badge variant="secondary">{product.brand}</Badge>
+              <Badge variant="outline">{product.type}</Badge>
+              {/* Specs básicas */}
+              {product.type === "CPU" && product.specsJson && (
+                <>
+                  <Badge variant="outline">{product.specsJson.cores}c/{product.specsJson.threads}t</Badge>
+                  <Badge variant="outline">Socket {product.specsJson.socket}</Badge>
+                </>
+              )}
+              {product.gpu && (
+                <>
+                  <Badge variant="outline">{product.gpu.vramGb}GB {product.gpu.vramType}</Badge>
+                  <Badge variant="outline">TDP {product.gpu.tdp}W</Badge>
+                </>
+              )}
+              {product.motherboard && (
+                <>
+                  <Badge variant="outline">Chipset {product.motherboard.chipset}</Badge>
+                  <Badge variant="outline">Socket {product.motherboard.socket}</Badge>
+                </>
+              )}
             </div>
 
             <Separator />
 
-            {/* “Best offer” destacado */}
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Melhor oferta</div>
@@ -278,64 +285,48 @@ export default function CpuPage() {
                   <a href="#offers">Ver todas</a>
                 </Button>
 
-                {/* Favorito */}
-                <FavoriteCPUButton cpuSlug={slug} />
+                {/* Favorito genérico (precisa implementar) */}
+                <FavoriteProductButton productType={product.type} productSlug={product.slug} />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Alerta de preço (por usuário logado) */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Alerta de preço</CardTitle>
-            <CardDescription>
-              {loggedIn
-                ? "Crie um alerta e gerencie em Minha conta."
-                : "Faça login para criar alertas (MVP)."}
-            </CardDescription>
-          </CardHeader>
+        {/* Alerta (só CPUs) */}
+        {product.type === "CPU" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Alerta de preço</CardTitle>
+              <CardDescription>
+                {loggedIn
+                  ? "Crie um alerta e gerencie em Minha conta."
+                  : "Faça login para criar alertas."}
+              </CardDescription>
+            </CardHeader>
 
-          <CardContent className="flex flex-col gap-3">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <div className="text-sm text-muted-foreground">Preço alvo (R$)</div>
-                <Input
-                  value={targetPrice}
-                  onChange={(e) => setTargetPrice(e.target.value)}
-                  placeholder="650,00"
-                  inputMode="decimal"
-                />
+            <CardContent className="flex flex-col gap-3">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground">Preço alvo (R$)</div>
+                  <Input
+                    value={targetPrice}
+                    onChange={(e) => setTargetPrice(e.target.value)}
+                    placeholder="650,00"
+                    inputMode="decimal"
+                  />
+                </div>
+
+                <div className="flex items-end gap-2">
+                  <Button onClick={createAlert} disabled={alertLoading || !targetPrice}>
+                    {alertLoading ? "Criando..." : loggedIn ? "Criar alerta" : "Entrar para criar"}
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex items-end gap-2">
-                <Button onClick={createAlert} disabled={alertLoading || !targetPrice}>
-                  {alertLoading ? "Criando..." : loggedIn ? "Criar alerta" : "Entrar para criar"}
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    setAlertStatus(null);
-                    await fetch("/api/jobs/check-alerts", { method: "POST" });
-
-                    setAlertStatus(
-                      "Job executado ✅ (se houver alertas com preço abaixo do alvo, eles disparam)"
-                    );
-                  }}
-                >
-                  Testar job
-                </Button>
-              </div>
-            </div>
-
-            {alertStatus ? <div className="text-sm text-muted-foreground">{alertStatus}</div> : null}
-
-            <div className="text-xs text-muted-foreground">
-              Dica: use um alvo <strong>acima</strong> do melhor preço atual para ver o disparo rápido no MVP.
-            </div>
-          </CardContent>
-        </Card>
+              {alertStatus ? <div className="text-sm text-muted-foreground">{alertStatus}</div> : null}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Ofertas */}
         <Card id="offers">
@@ -392,8 +383,19 @@ export default function CpuPage() {
         </Card>
 
         {/* Histórico */}
-        {history?.length ? (
-          <PriceHistoryChart history={history} />
+        {product.priceSnapshots?.length ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Histórico de preço (30 dias)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm">
+                Preço mínimo: {formatBRLFromCents(Math.min(...product.priceSnapshots.map(s => s.priceCents)))}
+                <br />
+                Preço máximo: {formatBRLFromCents(Math.max(...product.priceSnapshots.map(s => s.priceCents)))}
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <Card>
             <CardHeader>
@@ -401,47 +403,85 @@ export default function CpuPage() {
               <CardDescription>Sem dados de histórico.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-sm text-muted-foreground">Ainda não há registros de preço para esta CPU.</div>
+              <div className="text-sm text-muted-foreground">Ainda não há registros de preço para este produto.</div>
             </CardContent>
           </Card>
         )}
 
-        {/* Especificações Técnicas */}
+        {/* Specs Técnicas */}
         <Card>
           <CardHeader>
             <CardTitle>Especificações técnicas</CardTitle>
-            <CardDescription>Informações do catálogo (MVP).</CardDescription>
+            <CardDescription>Informações do catálogo.</CardDescription>
           </CardHeader>
 
           <CardContent>
-            <div className="grid gap-3 text-sm md:grid-cols-2">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Marca</span>
-                <span className="font-medium">{cpu.brand}</span>
+            {product.type === "CPU" && product.specsJson && (
+              <div className="grid gap-3 text-sm md:grid-cols-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Marca</span>
+                  <span className="font-medium">{product.brand}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Cores / Threads</span>
+                  <span className="font-medium">{product.specsJson.cores}c / {product.specsJson.threads}t</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Socket</span>
+                  <span className="font-medium">{product.specsJson.socket}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Clock base</span>
+                  <span className="font-medium">{formatClockGHz(product.specsJson.baseClock)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Clock boost</span>
+                  <span className="font-medium">{formatClockGHz(product.specsJson.boostClock)}</span>
+                </div>
               </div>
+            )}
 
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Cores / Threads</span>
-                <span className="font-medium">
-                  {cpu.cores}c / {cpu.threads}t
-                </span>
+            {product.gpu && (
+              <div className="grid gap-3 text-sm md:grid-cols-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">VRAM</span>
+                  <span className="font-medium">{product.gpu.vramGb}GB {product.gpu.vramType}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Clock base</span>
+                  <span className="font-medium">{product.gpu.baseClock}MHz</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Clock boost</span>
+                  <span className="font-medium">{product.gpu.boostClock}MHz</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">TDP</span>
+                  <span className="font-medium">{product.gpu.tdp}W</span>
+                </div>
               </div>
+            )}
 
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Socket</span>
-                <span className="font-medium">{cpu.socket}</span>
+            {product.motherboard && (
+              <div className="grid gap-3 text-sm md:grid-cols-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Chipset</span>
+                  <span className="font-medium">{product.motherboard.chipset}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Socket</span>
+                  <span className="font-medium">{product.motherboard.socket}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Formato</span>
+                  <span className="font-medium">{product.motherboard.formFactor}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">RAM</span>
+                  <span className="font-medium">{product.motherboard.ramSlots} slots, até {product.motherboard.maxRamGb}GB</span>
+                </div>
               </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Clock base</span>
-                <span className="font-medium">{formatClockGHz(cpu.baseClock)}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Clock boost</span>
-                <span className="font-medium">{formatClockGHz(cpu.boostClock)}</span>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

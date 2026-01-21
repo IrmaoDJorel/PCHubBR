@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export function FavoriteCPUButton({ cpuSlug }: { cpuSlug: string }) {
+export function FavoriteProductButton({ productType, productSlug }: { productType: string; productSlug: string }) {
   const [loading, setLoading] = useState(false);
   const [fav, setFav] = useState<boolean | null>(null);
 
@@ -15,7 +15,7 @@ export function FavoriteCPUButton({ cpuSlug }: { cpuSlug: string }) {
         return;
       }
       const data = await res.json();
-      const isFav = Array.isArray(data) && data.some((x) => x?.itemType === "CPU" && x?.cpu?.slug === cpuSlug);
+      const isFav = Array.isArray(data) && data.some((x) => x?.itemType === productType && x?.slug === productSlug);
       setFav(isFav);
     } catch {
       setFav(null);
@@ -29,7 +29,7 @@ export function FavoriteCPUButton({ cpuSlug }: { cpuSlug: string }) {
       const res = await fetch("/api/favorites", {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemType: "CPU", cpuSlug }),
+        body: JSON.stringify({ itemType: productType, productSlug }),
       });
 
       if (res.status === 401) {

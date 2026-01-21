@@ -11,66 +11,69 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 
-type Cpu = {
+type Product = {
   id: string;
   name: string;
   slug: string;
   brand: string;
-  cores: number;
-  threads: number;
-  bestPriceCents: number | null;
-  bestStoreName: string | null;
-  offerCount: number;
+  type: string;
+  specsJson: any;
+  offers: Array<{ priceCents: number; store: { name: string } }>;
+  gpu?: any;
+  motherboard?: any;
 };
 
 type SortKey = "name" | "priceAsc" | "priceDesc";
 
 export default function Home() {
-  const [cpus, setCpus] = useState<Cpu[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [query, setQuery] = useState("");
-  const [brand, setBrand] = useState<"ALL" | "AMD" | "Intel">("ALL");
+  const [type, setType] = useState<"ALL" | "CPU" | "GPU" | "MOTHERBOARD">("ALL");
+  const [brand, setBrand] = useState<"ALL" | "AMD" | "Intel" | "NVIDIA" | "Gigabyte" | "ASUS" | "MSI">("ALL");
   const [sort, setSort] = useState<SortKey>("priceAsc");
 
   const [loggedIn, setLoggedIn] = useState<boolean>(false);
   const [sessionLoaded, setSessionLoaded] = useState(false);
 
   useEffect(() => {
-    fetch("/api/cpus")
+    const typeParam = type === "ALL" ? "" : `?type=${type}`;
+    fetch(`/api/products${typeParam}`)
       .then((r) => r.json())
-      .then(setCpus)
+      .then(setProducts)
       .finally(() => setLoading(false));
-  }, []);
+  }, [type]);
 
   useEffect(() => {
-  fetch("/api/session")
-    .then((r) => r.json())
-    .then((d) => setLoggedIn(Boolean(d?.loggedIn)))
-    .finally(() => setSessionLoaded(true));
+    fetch("/api/session")
+      .then((r) => r.json())
+      .then((d) => setLoggedIn(Boolean(d?.loggedIn)))
+      .finally(() => setSessionLoaded(true));
   }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
-    let list = cpus.filter((c) => {
-      const matchQuery = !q || c.name.toLowerCase().includes(q);
-      const matchBrand = brand === "ALL" || c.brand === brand;
-      return matchQuery && matchBrand;
+    let list = products.filter((p) => {
+      const matchQuery = !q || p.name.toLowerCase().includes(q);
+      const matchType = type === "ALL" || p.type === type;
+      const matchBrand = brand === "ALL" || p.brand === brand;
+      return matchQuery && matchType && matchBrand;
     });
 
     list = [...list].sort((a, b) => {
       if (sort === "name") return a.name.localeCompare(b.name);
 
-      const ap = a.bestPriceCents ?? Number.POSITIVE_INFINITY;
-      const bp = b.bestPriceCents ?? Number.POSITIVE_INFINITY;
+      const ap = a.offers[0]?.priceCents ?? Number.POSITIVE_INFINITY;
+      const bp = b.offers[0]?.priceCents ?? Number.POSITIVE_INFINITY;
 
       if (sort === "priceAsc") return ap - bp;
       return bp - ap;
     });
 
     return list;
-  }, [cpus, query, brand, sort]);
+  }, [products, query, type, brand, sort]);
 
   return (
     <main className="mx-auto max-w-5xl p-6">
@@ -102,26 +105,51 @@ export default function Home() {
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <Input
-          placeholder="Buscar CPU (ex.: 5600, 12400F...)"
+          placeholder="Buscar (ex.: 5600, RTX 4060...)"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="md:max-w-sm"
         />
 
         <div className="flex flex-wrap gap-2">
+          {/* Filtro de Tipo */}
+          <Button variant={type === "ALL" ? "default" : "outline"} onClick={() => setType("ALL")}>
+            Todos
+          </Button>
+          <Button variant={type === "CPU" ? "default" : "outline"} onClick={() => setType("CPU")}>
+            CPUs
+          </Button>
+          <Button variant={type === "GPU" ? "default" : "outline"} onClick={() => setType("GPU")}>
+            GPUs
+          </Button>
+          <Button variant={type === "MOTHERBOARD" ? "default" : "outline"} onClick={() => setType("MOTHERBOARD")}>
+            Placas-Mãe
+          </Button>
+
+          {/* Filtro de Marca (expandido) */}
           <Button variant={brand === "ALL" ? "default" : "outline"} onClick={() => setBrand("ALL")}>
-            Todas
+            Todas Marcas
           </Button>
           <Button variant={brand === "AMD" ? "default" : "outline"} onClick={() => setBrand("AMD")}>
             AMD
           </Button>
-          <Button
-            variant={brand === "Intel" ? "default" : "outline"}
-            onClick={() => setBrand("Intel")}
-          >
+          <Button variant={brand === "Intel" ? "default" : "outline"} onClick={() => setBrand("Intel")}>
             Intel
           </Button>
+          <Button variant={brand === "NVIDIA" ? "default" : "outline"} onClick={() => setBrand("NVIDIA")}>
+            NVIDIA
+          </Button>
+          <Button variant={brand === "Gigabyte" ? "default" : "outline"} onClick={() => setBrand("Gigabyte")}>
+            Gigabyte
+          </Button>
+          <Button variant={brand === "ASUS" ? "default" : "outline"} onClick={() => setBrand("ASUS")}>
+            ASUS
+          </Button>
+          <Button variant={brand === "MSI" ? "default" : "outline"} onClick={() => setBrand("MSI")}>
+            MSI
+          </Button>
 
+          {/* Ordenação */}
           <Button variant={sort === "priceAsc" ? "default" : "outline"} onClick={() => setSort("priceAsc")}>
             Menor preço
           </Button>
@@ -149,23 +177,37 @@ export default function Home() {
             </Card>
           ))
         ) : filtered.length ? (
-          filtered.map((c) => {
-            const hasPrice = c.bestPriceCents !== null;
+          filtered.map((p) => {
+            const bestOffer = p.offers[0];
+            const hasPrice = bestOffer !== undefined;
 
             return (
-              <Card key={c.id} className="transition hover:shadow-sm">
+              <Card key={p.id} className="transition hover:shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-base">
-                    <Link href={`/cpu/${c.slug}`} className="hover:underline">
-                      {c.name}
+                    <Link href={`/products/${p.slug}`} className="hover:underline">
+                      {p.name}
                     </Link>
                   </CardTitle>
 
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">{c.brand}</Badge>
-                    <Badge variant="outline">
-                      {c.cores}c/{c.threads}t
-                    </Badge>
+                    <Badge variant="secondary">{p.brand}</Badge>
+                    <Badge variant="outline">{p.type}</Badge>
+                    {p.type === "CPU" && p.specsJson && (
+                      <Badge variant="outline">
+                        {p.specsJson.cores}c/{p.specsJson.threads}t
+                      </Badge>
+                    )}
+                    {p.gpu && (
+                      <Badge variant="outline">
+                        {p.gpu.vramGb}GB {p.gpu.vramType}
+                      </Badge>
+                    )}
+                    {p.motherboard && (
+                      <Badge variant="outline">
+                        {p.motherboard.chipset}
+                      </Badge>
+                    )}
                   </div>
                 </CardHeader>
 
@@ -173,18 +215,18 @@ export default function Home() {
                   <div className="text-sm">
                     <span className="text-muted-foreground">Melhor preço:</span>{" "}
                     <span className="font-semibold">
-                      {hasPrice ? formatBRLFromCents(c.bestPriceCents!) : "Sem ofertas"}
+                      {hasPrice ? formatBRLFromCents(bestOffer.priceCents) : "Sem ofertas"}
                     </span>
                     {hasPrice ? (
-                      <span className="text-muted-foreground"> ({c.bestStoreName ?? "loja"})</span>
+                      <span className="text-muted-foreground"> ({bestOffer.store.name})</span>
                     ) : null}
                   </div>
 
-                  <div className="text-sm text-muted-foreground">{c.offerCount} oferta(s)</div>
+                  <div className="text-sm text-muted-foreground">{p.offers.length} oferta(s)</div>
 
                   <div>
                     <Button asChild size="sm">
-                      <Link href={`/cpu/${c.slug}`}>Ver detalhes</Link>
+                      <Link href={`/products/${p.slug}`}>Ver detalhes</Link>
                     </Button>
                   </div>
                 </CardContent>
@@ -192,7 +234,7 @@ export default function Home() {
             );
           })
         ) : (
-          <div className="text-sm text-muted-foreground">Nenhuma CPU encontrada.</div>
+          <div className="text-sm text-muted-foreground">Nenhum produto encontrado.</div>
         )}
       </div>
     </main>

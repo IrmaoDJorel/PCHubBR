@@ -8,6 +8,7 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// EXISTENTE (não mexer)
 model Cpu {
   id         String   @id @default(cuid())
   name       String   @unique
@@ -27,16 +28,20 @@ model Cpu {
   alerts PriceAlert[]
 }
 
+// EXISTENTE (não mexer)
 model Store {
   id        String   @id @default(cuid())
   name      String   @unique
   url       String
   createdAt DateTime @default(now())
 
-  offers         Offer[]
-  priceSnapshots PriceSnapshot[]
+  offers                Offer[]
+  priceSnapshots        PriceSnapshot[]
+  productOffers         ProductOffer[]
+  productPriceSnapshots ProductPriceSnapshot[]
 }
 
+// EXISTENTE (não mexer, mas vamos expandir para Product)
 model Offer {
   id         String   @id @default(cuid())
   cpuId      String
@@ -50,6 +55,7 @@ model Offer {
   store Store @relation(fields: [storeId], references: [id])
 }
 
+// EXISTENTE (não mexer)
 model PriceSnapshot {
   id         String   @id @default(cuid())
   cpuId      String
@@ -64,6 +70,7 @@ model PriceSnapshot {
   @@unique([cpuId, storeId, date])
 }
 
+// EXISTENTE (não mexer)
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -73,12 +80,13 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  alerts   PriceAlert[]
-  accounts Account[]
-  sessions Session[]
+  alerts    PriceAlert[]
+  accounts  Account[]
+  sessions  Session[]
   favorites Favorite[]
 }
 
+// EXISTENTE (não mexer)
 model PriceAlert {
   id               String    @id @default(cuid())
   userId           String
@@ -97,6 +105,7 @@ model PriceAlert {
   @@index([cpuId, isActive])
 }
 
+// EXISTENTE (não mexer)
 model PriceAlertEvent {
   id         String   @id @default(cuid())
   alertId    String
@@ -109,6 +118,7 @@ model PriceAlertEvent {
   @@index([alertId, createdAt])
 }
 
+// EXISTENTE (não mexer)
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -128,6 +138,7 @@ model Account {
   @@unique([provider, providerAccountId])
 }
 
+// EXISTENTE (não mexer)
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
@@ -137,6 +148,7 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// EXISTENTE (não mexer)
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -145,10 +157,14 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+// EXISTENTE (expandir enum depois)
 enum FavoriteItemType {
   CPU
+  GPU
+  MOTHERBOARD
 }
 
+// EXISTENTE (não mexer)
 model Favorite {
   id        String           @id @default(cuid())
   userId    String
@@ -160,4 +176,94 @@ model Favorite {
 
   @@unique([userId, itemType, itemId])
   @@index([userId, itemType])
+}
+
+// NOVO: Produto genérico (para novas categorias)
+enum ProductType {
+  GPU
+  MOTHERBOARD
+}
+
+model Product {
+  id        String      @id @default(cuid())
+  type      ProductType
+  name      String
+  slug      String      @unique
+  brand     String
+  specsJson Json // Specs específicas (ex.: { chipset: "B450", socket: "AM4" })
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  offers         ProductOffer[]
+  priceSnapshots ProductPriceSnapshot[]
+  gpu            Gpu?
+  motherboard    Motherboard?
+
+  @@unique([type, name])
+  @@index([type, brand])
+}
+
+// NOVO: Oferta para produtos genéricos
+model ProductOffer {
+  id           String   @id @default(cuid())
+  productId    String
+  storeId      String
+  priceCents   Int
+  url          String
+  affiliateUrl String? // NOVO: URL com afiliação
+  stockStatus  String   @default("available") // available, out_of_stock, discontinued
+  lastSeenAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id])
+  store   Store   @relation(fields: [storeId], references: [id])
+}
+
+// NOVO: Histórico de preço para produtos genéricos
+model ProductPriceSnapshot {
+  id         String   @id @default(cuid())
+  productId  String
+  storeId    String
+  priceCents Int
+  date       DateTime
+  createdAt  DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+  store   Store   @relation(fields: [storeId], references: [id])
+
+  @@unique([productId, storeId, date])
+}
+
+// NOVO: Specs específicas para GPU
+model Gpu {
+  id         String   @id @default(cuid())
+  productId  String   @unique
+  vramGb     Int
+  vramType   String // GDDR6, GDDR5X, etc.
+  baseClock  Int // MHz
+  boostClock Int? // MHz
+  tdp        Int // Watts
+  interface  String // PCIe 4.0 x16, etc.
+  createdAt  DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// NOVO: Specs específicas para Placa-Mãe
+model Motherboard {
+  id         String   @id @default(cuid())
+  productId  String   @unique
+  chipset    String // B450, Z590, etc.
+  socket     String // AM4, LGA1200, etc.
+  formFactor String // ATX, Micro-ATX, Mini-ITX
+  ramSlots   Int
+  ramType    String // DDR4, DDR5
+  maxRamGb   Int
+  sataPorts  Int
+  m2Slots    Int
+  usbPorts   Json // { usb3: 4, usb2: 2 }
+  createdAt  DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }

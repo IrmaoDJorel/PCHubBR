@@ -30,10 +30,10 @@ type AlertItem = {
 
 type FavoriteItem = {
   id: string;
-  itemType: "CPU";
+  itemType: string; // "CPU", "GPU", "MOTHERBOARD"
   itemId: string;
   createdAt: string;
-  cpu?: { id: string; name: string; slug: string } | null;
+  slug: string | null; // Slug resolvido
 };
 
 function formatDateTimeBR(iso: string) {
@@ -214,7 +214,7 @@ export default function ProfilePage() {
     }
   }
 
-  async function removeFavoriteCPU(cpuSlug: string) {
+  async function removeFavorite(itemType: string, productSlug: string) {
     setStatus(null);
     setLoading(true);
 
@@ -222,7 +222,7 @@ export default function ProfilePage() {
       const res = await fetch("/api/favorites", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemType: "CPU", cpuSlug }),
+        body: JSON.stringify({ itemType, productSlug }),
       });
 
       const text = await res.text();
@@ -347,25 +347,24 @@ export default function ProfilePage() {
                   >
                     <div className="space-y-1">
                       <div className="text-xs text-muted-foreground">{f.itemType}</div>
-                      <div className="font-medium">{f.cpu?.name ?? "Item indisponível"}</div>
-                      {f.cpu?.slug ? (
-                        <div className="text-xs text-muted-foreground">Slug: {f.cpu.slug}</div>
-                      ) : null}
+                      <div className="font-medium">
+                        {f.slug ? `${f.itemType} - ${f.slug}` : "Item indisponível"}
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {f.cpu?.slug ? (
+                      {f.slug ? (
                         <Button asChild variant="outline">
-                          <Link href={`/cpu/${f.cpu.slug}`}>Ver CPU</Link>
+                          <Link href={`/products/${f.slug}`}>Ver</Link>
                         </Button>
                       ) : null}
 
-                      {f.cpu?.slug ? (
+                      {f.slug ? (
                         <Button
                           variant="destructive"
                           onClick={() => {
                             const ok = confirm("Remover este favorito?");
-                            if (ok) removeFavoriteCPU(f.cpu!.slug);
+                            if (ok) removeFavorite(f.itemType, f.slug);
                           }}
                           disabled={loading}
                         >
@@ -442,7 +441,7 @@ export default function ProfilePage() {
                         ) : null}
 
                         <Button asChild variant="outline">
-                          <Link href={`/cpu/${a.cpu.slug}`}>Ver CPU</Link>
+                          <Link href={`/products/${a.cpu.slug}`}>Ver</Link>
                         </Button>
 
                         <Button
