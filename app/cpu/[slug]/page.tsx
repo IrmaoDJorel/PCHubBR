@@ -10,35 +10,111 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import { FavoriteProductButton } from "@/components/ui/FavoriteProductButton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
-type GpuDetail = {
+type CpuDetail = {
   id: string;
   name: string;
   slug: string;
   brand: string;
   type: string;
-  gpu: {
-    vramGb?: number;
-    vramType?: string;
-    chipset?: string;
+  specsJson: {
+    cores?: number;
+    threads?: number;
+    socket?: string;
     baseClock?: number;
     boostClock?: number;
-    tdp?: number;
   };
   offers: Array<{ priceCents: number; url: string; store: { name: string } }>;
   priceSnapshots: Array<{ priceCents: number; date: string; store: { name: string } }>;
 };
 
-export default function GpuDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+function formatClockGHz(n?: number | null) {
+  if (n === null || n === undefined) return "—";
+  return `${n.toFixed(1)} GHz`;
+}
+
+export default function CpuDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const [slug, setSlug] = useState<string>("");
-  const [gpu, setGpu] = useState<GpuDetail | null>(null);
+  const [cpu, setCpu] = useState<CpuDetail | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Sessão
+  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+
+  // Alerta
+  const [targetPrice, setTargetPrice] = useState("");
+  const [alertStatus, setAlertStatus] = useState<string | null>(null);
+  const [alertLoading, setAlertLoading] = useState(false);
+
+  async function loadSession() {
+    try {
+      const res = await fetch("/api/session");
+      const data = await res.json().catch(() => null);
+      setLoggedIn(Boolean(data?.loggedIn));
+    } catch {
+      setLoggedIn(false);
+    } finally {
+      setSessionLoaded(true);
+    }
+  }
+
+  async function createAlert() {
+    setAlertStatus(null);
+
+    if (!sessionLoaded) {
+      setAlertStatus("Carregando sessão...");
+      return;
+    }
+
+    if (!loggedIn) {
+      window.location.href = `/login`;
+      return;
+    }
+
+    setAlertLoading(true);
+
+    try {
+      const res = await fetch("/api/alerts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cpuSlug: slug,
+          targetPrice,
+        }),
+      });
+
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+
+      if (res.status === 401) {
+        window.location.href = `/login`;
+        return;
+      }
+
+      if (!res.ok) {
+        setAlertStatus(data?.error || "Erro ao criar alerta");
+        return;
+      }
+
+      setAlertStatus("Alerta criado ✅ (gerencie em Minha conta)");
+    } catch {
+      setAlertStatus("Falha de rede ao criar alerta");
+    } finally {
+      setAlertLoading(false);
+    }
+  }
 
   useEffect(() => {
     params.then((p) => setSlug(p.slug));
   }, [params]);
+
+  useEffect(() => {
+    void loadSession();
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
@@ -47,24 +123,24 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
 
     fetch(`/api/products/${slug}`)
       .then((r) => r.json())
-      .then(setGpu)
+      .then(setCpu)
       .finally(() => setLoading(false));
   }, [slug]);
 
   const bestOffer = useMemo(() => {
-    if (!gpu?.offers?.length) return null;
+    if (!cpu?.offers?.length) return null;
 
-    let best = gpu.offers[0];
-    for (const o of gpu.offers) {
+    let best = cpu.offers[0];
+    for (const o of cpu.offers) {
       if (o.priceCents < best.priceCents) best = o;
     }
     return best;
-  }, [gpu]);
+  }, [cpu]);
 
   const offersSorted = useMemo(() => {
-    if (!gpu?.offers?.length) return [];
-    return [...gpu.offers].sort((a, b) => a.priceCents - b.priceCents);
-  }, [gpu]);
+    if (!cpu?.offers?.length) return [];
+    return [...cpu.offers].sort((a, b) => a.priceCents - b.priceCents);
+  }, [cpu]);
 
   if (loading) {
     return (
@@ -91,25 +167,25 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
     );
   }
 
-  if (!gpu) {
+  if (!cpu) {
     return (
       <main className="space-y-6">
         <Breadcrumbs
           items={[
             { label: "Início", href: "/" },
-            { label: "GPUs", href: "/gpu" },
+            { label: "CPUs", href: "/cpu" },
             { label: "Não encontrada" },
           ]}
         />
 
         <Card>
           <CardHeader>
-            <CardTitle>GPU não encontrada</CardTitle>
+            <CardTitle>CPU não encontrada</CardTitle>
             <CardDescription>Verifique o link ou volte para a lista.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link href="/gpu">Voltar para GPUs</Link>
+              <Link href="/cpu">Voltar para CPUs</Link>
             </Button>
           </CardContent>
         </Card>
@@ -123,15 +199,15 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
       <Breadcrumbs
         items={[
           { label: "Início", href: "/" },
-          { label: "GPUs", href: "/gpu" },
-          { label: gpu.name },
+          { label: "CPUs", href: "/cpu" },
+          { label: cpu.name },
         ]}
       />
 
       {/* Barra superior */}
       <div className="flex items-center justify-between">
         <Button asChild variant="outline">
-          <Link href="/gpu">← Voltar para GPUs</Link>
+          <Link href="/cpu">← Voltar para CPUs</Link>
         </Button>
 
         {bestOffer ? (
@@ -146,26 +222,27 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
       </div>
 
       <div className="grid gap-4">
-        {/* Header da GPU */}
+        {/* Header da CPU */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">{gpu.name}</CardTitle>
+            <CardTitle className="text-xl">{cpu.name}</CardTitle>
             <CardDescription>
-              {gpu.brand} • Placa de Vídeo
+              {cpu.brand} • Processador
             </CardDescription>
           </CardHeader>
 
           <CardContent className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">{gpu.brand}</Badge>
-              <Badge variant="outline">GPU</Badge>
-              {gpu.gpu.chipset && <Badge variant="outline">{gpu.gpu.chipset}</Badge>}
-              {gpu.gpu.vramGb && (
+              <Badge variant="secondary">{cpu.brand}</Badge>
+              <Badge variant="outline">CPU</Badge>
+              {cpu.specsJson.cores && (
                 <Badge variant="outline">
-                  {gpu.gpu.vramGb}GB {gpu.gpu.vramType || "VRAM"}
+                  {cpu.specsJson.cores}c/{cpu.specsJson.threads}t
                 </Badge>
               )}
-              {gpu.gpu.tdp && <Badge variant="outline">TDP {gpu.gpu.tdp}W</Badge>}
+              {cpu.specsJson.socket && (
+                <Badge variant="outline">Socket {cpu.specsJson.socket}</Badge>
+              )}
             </div>
 
             <Separator />
@@ -196,9 +273,43 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
                   <a href="#offers">Ver todas</a>
                 </Button>
 
-                <FavoriteProductButton productType="GPU" productSlug={gpu.slug} />
+                <FavoriteProductButton productType="CPU" productSlug={cpu.slug} />
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Alerta de preço */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Alerta de preço</CardTitle>
+            <CardDescription>
+              {loggedIn
+                ? "Crie um alerta e gerencie em Minha conta."
+                : "Faça login para criar alertas."}
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="flex flex-col gap-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground">Preço alvo (R$)</div>
+                <Input
+                  value={targetPrice}
+                  onChange={(e) => setTargetPrice(e.target.value)}
+                  placeholder="650,00"
+                  inputMode="decimal"
+                />
+              </div>
+
+              <div className="flex items-end gap-2">
+                <Button onClick={createAlert} disabled={alertLoading || !targetPrice}>
+                  {alertLoading ? "Criando..." : loggedIn ? "Criar alerta" : "Entrar para criar"}
+                </Button>
+              </div>
+            </div>
+
+            {alertStatus ? <div className="text-sm text-muted-foreground">{alertStatus}</div> : null}
           </CardContent>
         </Card>
 
@@ -259,16 +370,16 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
         </Card>
 
         {/* Histórico */}
-        {gpu.priceSnapshots?.length ? (
+        {cpu.priceSnapshots?.length ? (
           <Card>
             <CardHeader>
               <CardTitle>Histórico de preço (30 dias)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-sm">
-                Preço mínimo: {formatBRLFromCents(Math.min(...gpu.priceSnapshots.map((s) => s.priceCents)))}
+                Preço mínimo: {formatBRLFromCents(Math.min(...cpu.priceSnapshots.map((s) => s.priceCents)))}
                 <br />
-                Preço máximo: {formatBRLFromCents(Math.max(...gpu.priceSnapshots.map((s) => s.priceCents)))}
+                Preço máximo: {formatBRLFromCents(Math.max(...cpu.priceSnapshots.map((s) => s.priceCents)))}
               </div>
             </CardContent>
           </Card>
@@ -280,7 +391,7 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
             </CardHeader>
             <CardContent>
               <div className="text-sm text-muted-foreground">
-                Ainda não há registros de preço para esta GPU.
+                Ainda não há registros de preço para este processador.
               </div>
             </CardContent>
           </Card>
@@ -297,40 +408,26 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
             <div className="grid gap-3 text-sm md:grid-cols-2">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Marca</span>
-                <span className="font-medium">{gpu.brand}</span>
+                <span className="font-medium">{cpu.brand}</span>
               </div>
-              {gpu.gpu.chipset && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Chipset</span>
-                  <span className="font-medium">{gpu.gpu.chipset}</span>
-                </div>
-              )}
-              {gpu.gpu.vramGb && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">VRAM</span>
-                  <span className="font-medium">
-                    {gpu.gpu.vramGb}GB {gpu.gpu.vramType || ""}
-                  </span>
-                </div>
-              )}
-              {gpu.gpu.baseClock && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Clock base</span>
-                  <span className="font-medium">{gpu.gpu.baseClock}MHz</span>
-                </div>
-              )}
-              {gpu.gpu.boostClock && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Clock boost</span>
-                  <span className="font-medium">{gpu.gpu.boostClock}MHz</span>
-                </div>
-              )}
-              {gpu.gpu.tdp && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">TDP</span>
-                  <span className="font-medium">{gpu.gpu.tdp}W</span>
-                </div>
-              )}
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Cores / Threads</span>
+                <span className="font-medium">
+                  {cpu.specsJson.cores || "—"}c / {cpu.specsJson.threads || "—"}t
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Socket</span>
+                <span className="font-medium">{cpu.specsJson.socket || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Clock base</span>
+                <span className="font-medium">{formatClockGHz(cpu.specsJson.baseClock)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Clock boost</span>
+                <span className="font-medium">{formatClockGHz(cpu.specsJson.boostClock)}</span>
+              </div>
             </div>
           </CardContent>
         </Card>
