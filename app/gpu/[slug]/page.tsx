@@ -12,6 +12,31 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FavoriteProductButton } from "@/components/ui/FavoriteProductButton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import type { Metadata } from "next";
+
+type Props = {
+  params: Promise<{ slug: string }>;
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  
+  // Busca dados do produto (simplificado)
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/products/${slug}`);
+    const gpu = await res.json();
+    
+    return {
+      title: `${gpu.name} - Comparar Preços | PCHubBR`,
+      description: `Compare preços do ${gpu.name} (${gpu.brand}) nas melhores lojas. ${gpu.specsJson?.vramGb || ''}GB VRAM, Chipset ${gpu.specsJson?.chipset || ''}. Encontre a melhor oferta!`,
+    };
+  } catch {
+    return {
+      title: "Placas de Vídeo - PCHubBR",
+      description: "Compare preços de placas de vídeo nas melhores lojas.",
+    };
+  }
+}
 
 type GpuDetail = {
   id: string;
@@ -26,6 +51,15 @@ type GpuDetail = {
     baseClock?: number;
     boostClock?: number;
     tdp?: number;
+    interface?: string;
+    manufacturer?: string;
+    series?: string;
+    rayTracing?: boolean;
+    dlss?: boolean;
+    pciSlots?: number;
+    powerConnectors?: string;
+    length?: number;
+    releaseYear?: number;
   };
   offers: Array<{ priceCents: number; url: string; store: { name: string } }>;
   priceSnapshots: Array<{ priceCents: number; date: string; store: { name: string } }>;
@@ -299,13 +333,16 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
                 <span className="text-muted-foreground">Marca</span>
                 <span className="font-medium">{gpu.brand}</span>
               </div>
-              {gpu.gpu.chipset && (
+
+              {/* ✅ NOVO CAMPO */}
+              {gpu.gpu?.chipset && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Chipset</span>
                   <span className="font-medium">{gpu.gpu.chipset}</span>
                 </div>
               )}
-              {gpu.gpu.vramGb && (
+
+              {gpu.gpu?.vramGb && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">VRAM</span>
                   <span className="font-medium">
@@ -313,22 +350,32 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
                   </span>
                 </div>
               )}
-              {gpu.gpu.baseClock && (
+
+              {gpu.gpu?.baseClock && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Clock base</span>
-                  <span className="font-medium">{gpu.gpu.baseClock}MHz</span>
+                  <span className="font-medium">{gpu.gpu.baseClock} MHz</span>
                 </div>
               )}
-              {gpu.gpu.boostClock && (
+
+              {gpu.gpu?.boostClock && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Clock boost</span>
-                  <span className="font-medium">{gpu.gpu.boostClock}MHz</span>
+                  <span className="font-medium">{gpu.gpu.boostClock} MHz</span>
                 </div>
               )}
-              {gpu.gpu.tdp && (
+
+              {gpu.gpu?.tdp && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">TDP</span>
                   <span className="font-medium">{gpu.gpu.tdp}W</span>
+                </div>
+              )}
+
+              {gpu.gpu?.interface && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Interface</span>
+                  <span className="font-medium">{gpu.gpu.interface}</span>
                 </div>
               )}
             </div>

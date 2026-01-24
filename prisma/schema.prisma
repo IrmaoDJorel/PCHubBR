@@ -19,13 +19,17 @@ model Cpu {
   baseClock  Float
   boostClock Float?
   socket     String
+  
+  // ✅ NOVOS CAMPOS PARA FILTROS
+  hasIntegratedGraphics Boolean @default(false)
+  tdp                   Int?    // TDP em Watts
+  
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   offers         Offer[]
   priceSnapshots PriceSnapshot[]
-
-  alerts PriceAlert[]
+  alerts         PriceAlert[]
 }
 
 // EXISTENTE (não mexer)
@@ -235,34 +239,40 @@ model ProductPriceSnapshot {
   @@unique([productId, storeId, date])
 }
 
-// NOVO: Specs específicas para GPU
 model Gpu {
   id         String   @id @default(cuid())
   productId  String   @unique
   vramGb     Int
-  vramType   String // GDDR6, GDDR5X, etc.
-  baseClock  Int // MHz
-  boostClock Int? // MHz
-  tdp        Int // Watts
-  interface  String // PCIe 4.0 x16, etc.
+  vramType   String   // GDDR6, GDDR5X, etc.
+  baseClock  Int      // MHz
+  boostClock Int?     // MHz
+  tdp        Int      // Watts
+  interface  String   // PCIe 4.0 x16, etc.
+  
+  // ✅ NOVO CAMPO PARA FILTROS
+  chipset    String?  // Ex: "RTX 4060", "RX 7600 XT"
+  
   createdAt  DateTime @default(now())
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
-// NOVO: Specs específicas para Placa-Mãe
 model Motherboard {
   id         String   @id @default(cuid())
   productId  String   @unique
-  chipset    String // B450, Z590, etc.
-  socket     String // AM4, LGA1200, etc.
-  formFactor String // ATX, Micro-ATX, Mini-ITX
+  chipset    String   // B450, Z590, etc.
+  socket     String   // AM4, LGA1200, etc.
+  formFactor String   // ATX, Micro-ATX, Mini-ITX
   ramSlots   Int
-  ramType    String // DDR4, DDR5
+  ramType    String   // DDR4, DDR5
   maxRamGb   Int
+  
+  maxRamSpeed Int?    // MHz (ex: 3200, 5600)
+  wifi        Boolean @default(false)
+  
   sataPorts  Int
   m2Slots    Int
-  usbPorts   Json // { usb3: 4, usb2: 2 }
+  usbPorts   Json     // { usb3: 4, usb2: 2 }
   createdAt  DateTime @default(now())
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)

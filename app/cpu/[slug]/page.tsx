@@ -13,6 +13,31 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { FavoriteProductButton } from "@/components/ui/FavoriteProductButton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import type { Metadata } from "next";
+
+type Props = {
+  params: Promise<{ slug: string }>;
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  
+  // Busca dados do produto (simplificado)
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/products/${slug}`);
+    const cpu = await res.json();
+    
+    return {
+      title: `${cpu.name} - Comparar Preços | PCHubBR`,
+      description: `Compare preços do ${cpu.name} (${cpu.brand}) nas melhores lojas. ${cpu.specsJson?.cores || ''}c/${cpu.specsJson?.threads || ''}t, Socket ${cpu.specsJson?.socket || ''}. Encontre a melhor oferta!`,
+    };
+  } catch {
+    return {
+      title: "Processador - PCHubBR",
+      description: "Compare preços de processadores nas melhores lojas.",
+    };
+  }
+}
 
 type CpuDetail = {
   id: string;
@@ -26,6 +51,12 @@ type CpuDetail = {
     socket?: string;
     baseClock?: number;
     boostClock?: number;
+    hasIntegratedGraphics?: boolean;
+    tdp?: number;
+    cache?: number;
+    manufacturer?: string;
+    generation?: string;
+    releaseYear?: number;
   };
   offers: Array<{ priceCents: number; url: string; store: { name: string } }>;
   priceSnapshots: Array<{ priceCents: number; date: string; store: { name: string } }>;
@@ -410,24 +441,45 @@ export default function CpuDetailPage({ params }: { params: Promise<{ slug: stri
                 <span className="text-muted-foreground">Marca</span>
                 <span className="font-medium">{cpu.brand}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Cores / Threads</span>
-                <span className="font-medium">
-                  {cpu.specsJson.cores || "—"}c / {cpu.specsJson.threads || "—"}t
-                </span>
-              </div>
+              
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Socket</span>
                 <span className="font-medium">{cpu.specsJson.socket || "—"}</span>
               </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Núcleos / Threads</span>
+                <span className="font-medium">
+                  {cpu.specsJson.cores || "—"} cores / {cpu.specsJson.threads || "—"} threads
+                </span>
+              </div>
+
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Clock base</span>
                 <span className="font-medium">{formatClockGHz(cpu.specsJson.baseClock)}</span>
               </div>
+
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Clock boost</span>
                 <span className="font-medium">{formatClockGHz(cpu.specsJson.boostClock)}</span>
               </div>
+
+              {/* ✅ NOVOS CAMPOS */}
+              {cpu.specsJson.hasIntegratedGraphics !== undefined && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">GPU integrada</span>
+                  <span className="font-medium">
+                    {cpu.specsJson.hasIntegratedGraphics ? "Sim" : "Não"}
+                  </span>
+                </div>
+              )}
+
+              {cpu.specsJson.tdp && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">TDP</span>
+                  <span className="font-medium">{cpu.specsJson.tdp}W</span>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

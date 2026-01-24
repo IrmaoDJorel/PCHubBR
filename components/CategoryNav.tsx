@@ -1,28 +1,44 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
+type ProductCounts = {
+  total: number;
+  cpu: number;
+  gpu: number;
+  motherboard: number;
+};
+
 // Lista de categorias disponíveis
 const categories = [
-  { label: "Todas as Peças", href: "/" },
-  { label: "CPUs", href: "/cpu" },
-  { label: "GPUs", href: "/gpu" },
-  { label: "Placas-Mãe", href: "/motherboard" },
+  { label: "Todas as Peças", href: "/", key: "total" },
+  { label: "CPUs", href: "/cpu", key: "cpu" },
+  { label: "GPUs", href: "/gpu", key: "gpu" },
+  { label: "Placas-Mãe", href: "/motherboard", key: "motherboard" },
 ] as const;
 
 /**
  * Componente CategoryNav
  * 
  * Barra de navegação horizontal com categorias de produtos
+ * Exibe contadores de produtos por categoria
  * Destaca visualmente a categoria ativa (página atual)
  * Responsiva: scroll horizontal no mobile
- * 
- * Usa usePathname() do Next.js para detectar a rota atual
  */
 export function CategoryNav() {
-  const pathname = usePathname(); // Hook do Next.js 13+ (App Router)
+  const pathname = usePathname();
+  const [counts, setCounts] = useState<ProductCounts | null>(null);
+
+  // Busca contadores de produtos ao montar o componente
+  useEffect(() => {
+    fetch("/api/products/count")
+      .then((r) => r.json())
+      .then(setCounts)
+      .catch((err) => console.error("Erro ao buscar contadores:", err));
+  }, []);
 
   return (
     <nav
@@ -34,10 +50,12 @@ export function CategoryNav() {
         <div className="no-scrollbar flex gap-1 overflow-x-auto py-2">
           {categories.map((category) => {
             // Verifica se é a categoria ativa
-            // "/" é exata, outras verificam se pathname começa com href
             const isActive =
               pathname === category.href ||
               (category.href !== "/" && pathname.startsWith(category.href));
+
+            // Pega o contador específico da categoria
+            const count = counts?.[category.key as keyof ProductCounts];
 
             return (
               <Link
@@ -45,7 +63,7 @@ export function CategoryNav() {
                 href={category.href}
                 className={cn(
                   // Estilos base
-                  "whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors",
                   // Estado ativo: fundo primary, texto branco
                   isActive
                     ? "bg-primary text-primary-foreground"
@@ -54,7 +72,20 @@ export function CategoryNav() {
                 )}
                 aria-current={isActive ? "page" : undefined}
               >
-                {category.label}
+                <span>{category.label}</span>
+                {/* Contador (badge) */}
+                {count !== undefined && (
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-xs font-semibold",
+                      isActive
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {count}
+                  </span>
+                )}
               </Link>
             );
           })}

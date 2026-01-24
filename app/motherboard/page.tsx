@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ProductCardSkeletonGrid } from "@/components/ProductCardSkeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import type { Metadata } from "next";
 
 type Motherboard = {
   id: string;

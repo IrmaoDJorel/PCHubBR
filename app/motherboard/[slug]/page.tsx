@@ -12,6 +12,31 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FavoriteProductButton } from "@/components/ui/FavoriteProductButton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import type { Metadata } from "next";
+
+type Props = {
+  params: Promise<{ slug: string }>;
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  
+  // Busca dados do produto (simplificado)
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/products/${slug}`);
+    const motherboard = await res.json();
+    
+    return {
+      title: `${motherboard.name} - Comparar Preços | PCHubBR`,
+      description: `Compare preços da ${motherboard.name} (${motherboard.brand}) nas melhores lojas. ${motherboard.specsJson?.chipset || ''}, Socket ${motherboard.specsJson?.socket || ''}. Encontre a melhor oferta!`,
+    };
+  } catch {
+    return {
+      title: "Placas-Mãe - PCHubBR",
+      description: "Compare preços de placas-mãe nas melhores lojas.",
+    };
+  }
+}
 
 type MotherboardDetail = {
   id: string;
@@ -25,6 +50,21 @@ type MotherboardDetail = {
     formFactor?: string;
     ramSlots?: number;
     maxRamGb?: number;
+    ramType?: string;
+    maxRamSpeed?: number;
+    m2Slots?: number;
+    sataPorts?: number;
+    sataSlots?: number;
+    pciSlots?: number;
+    wifi?: boolean;
+    bluetooth?: boolean;
+    ethernet?: string;
+    usbPorts?: {
+      usb3?: number;
+      usb2?: number;
+      usbC?: number;
+    };
+    releaseYear?: number;
   };
   offers: Array<{ priceCents: number; url: string; store: { name: string } }>;
   priceSnapshots: Array<{ priceCents: number; date: string; store: { name: string } }>;
@@ -302,29 +342,72 @@ export default function MotherboardDetailPage({ params }: { params: Promise<{ sl
                 <span className="text-muted-foreground">Marca</span>
                 <span className="font-medium">{motherboard.brand}</span>
               </div>
-              {motherboard.motherboard.chipset && (
+
+              {motherboard.motherboard?.chipset && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Chipset</span>
                   <span className="font-medium">{motherboard.motherboard.chipset}</span>
                 </div>
               )}
-              {motherboard.motherboard.socket && (
+
+              {motherboard.motherboard?.socket && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Socket</span>
                   <span className="font-medium">{motherboard.motherboard.socket}</span>
                 </div>
               )}
-              {motherboard.motherboard.formFactor && (
+
+              {motherboard.motherboard?.formFactor && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Formato</span>
                   <span className="font-medium">{motherboard.motherboard.formFactor}</span>
                 </div>
               )}
-              {motherboard.motherboard.ramSlots && (
+
+              {motherboard.motherboard?.ramSlots && (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">RAM</span>
+                  <span className="text-muted-foreground">Slots de RAM</span>
                   <span className="font-medium">
-                    {motherboard.motherboard.ramSlots} slots, até {motherboard.motherboard.maxRamGb}GB
+                    {motherboard.motherboard.ramSlots}x {motherboard.motherboard.ramType || "DDR4"}
+                  </span>
+                </div>
+              )}
+
+              {motherboard.motherboard?.maxRamGb && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">RAM máxima</span>
+                  <span className="font-medium">{motherboard.motherboard.maxRamGb}GB</span>
+                </div>
+              )}
+
+              {/* ✅ NOVO CAMPO */}
+              {motherboard.motherboard?.maxRamSpeed && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Velocidade RAM máxima</span>
+                  <span className="font-medium">{motherboard.motherboard.maxRamSpeed} MHz</span>
+                </div>
+              )}
+
+              {motherboard.motherboard?.m2Slots && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Slots M.2</span>
+                  <span className="font-medium">{motherboard.motherboard.m2Slots}</span>
+                </div>
+              )}
+
+              {motherboard.motherboard?.sataPorts && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Portas SATA</span>
+                  <span className="font-medium">{motherboard.motherboard.sataPorts}</span>
+                </div>
+              )}
+
+              {/* ✅ NOVO CAMPO */}
+              {motherboard.motherboard?.wifi !== undefined && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Wi-Fi integrado</span>
+                  <span className="font-medium">
+                    {motherboard.motherboard.wifi ? "Sim" : "Não"}
                   </span>
                 </div>
               )}
