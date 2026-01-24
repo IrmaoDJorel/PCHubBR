@@ -1,131 +1,57 @@
-## 🧱 Fase 0 (Dia 0) — “Fundação” do PCHubBR (do zero absoluto)
+# 🗺️ Roadmap de Refatoração - Interface PCHubBR
 
-A **Fase 0** existe para você **não se perder** e **não refazer tudo** depois. Aqui você **não está “construindo features”** ainda; você está criando a base: projeto, padrões, decisões mínimas e organização.
-
-> Objetivo da Fase 0: no final, você tem um repositório organizado, o site rodando localmente, e decisões técnicas mínimas documentadas para começar a Fase 1 sem bagunça.
+## 📅 Última atualização: Janeiro 2025
 
 ---
 
-## ✅ 0.1) Definir o “MVP em 1 frase” (para guiar todas as decisões)
-Escreva no seu `ROADMAP.md`:
-
-- **MVP do PCHubBR:** “Um site para pesquisar CPUs e ver **preço atual + histórico de preço por loja**, com links de afiliado.”
-
-Isso serve como “bússola”: se algo não ajuda essa frase, **fica para depois**.
+## 🎯 Objetivo Geral
+Refatorar a interface principal do PCHubBR para melhorar a experiência do usuário, clareza das ofertas e navegação por categorias de produtos (CPUs, GPUs, Placas-Mãe).
 
 ---
 
-## ✅ 0.2) Estrutura do projeto (como organizar as pastas)
-Você vai usar **Next.js + Node**. Na prática, você tem duas opções:
+## ✅ FASE 1: Refatoração do Layout Base
+**Estimativa:** 1-2 dias  
+**Prioridade:** 🔴 ALTA
 
-### Opção A — **Um único projeto Next.js** (recomendado para começar do zero)
-- Você cria **um único app** e usa:
-  - **poucas páginas** (UI)
-  - **API Routes** do Next (para endpoints simples)
-  - scripts separados para tarefas internas (crawler depois)
+### Tarefas:
+- [ ] **1.1** Reorganizar header principal
+  - Mover botão "Minha conta" para o lado do toggle "Light/Dark"
+  - Criar dropdown de usuário (Perfil, Alertas, Favoritos, Sair)
+  - Otimizar espaçamento e responsividade mobile
 
-**Por que eu recomendo agora?**
-- Menos decisões
-- Menos configuração
-- Você começa a ver o site “existir” rápido
+- [ ] **1.2** Criar navbar de categorias secundária
+  - Botões: [Todas as Peças] [CPUs] [GPUs] [Placas-Mãe]
+  - Indicador visual da página ativa
+  - Scroll horizontal no mobile
 
-### Opção B — Monorepo (mais “adulto”, mas pode esperar)
-Monorepo é “vários projetos dentro do mesmo repositório” (ex.: site + crawler + libs).  
-É ótimo, mas você não precisa disso **na Fase 0** se ainda está iniciando.
+- [ ] **1.3** Implementar sistema de breadcrumbs
+  - Formato: Home > Categoria > Produto
+  - Melhorar SEO e navegação
+  - Compatível com todas as páginas
 
-> Decisão para hoje (Fase 0): **Opção A (1 projeto Next.js)**. Monorepo pode virar uma **Fase 2.5** quando o crawler crescer.
+- [ ] **1.4** Adicionar skeletons de loading
+  - Cards de produtos
+  - Gráficos de histórico
+  - Transições entre páginas
 
----
-
-## ✅ 0.3) Criar o repositório e padronizar “o básico”
-### Checklist
-1. **Criar repositório Git**
-   - Nome sugerido do repo: **`pchubbr`** (simples e sem variações)
-
-2. **Criar projeto Next.js**
-   - Resultado: você consegue rodar `npm run dev` e abrir o site.
-
-3. **Padronizar formatação e qualidade**
-   - **ESLint** (verifica padrões/erros no código)
-   - **Prettier** (formata automaticamente)
-
-4. **Criar arquivos de organização**
-   - `ROADMAP.md` (fases, objetivo, decisões)
-   - `GLOSSARIO.md` (toda palavra nova entra aqui)
-   - `DECISOES.md` (decisões curtas: “banco = Postgres”, “preço em centavos”, etc.)
-
-> Esses 3 arquivos viram seu “cérebro externo”. Isso faz muita diferença quando o projeto cresce.
+### Entregáveis:
+- Header responsivo e organizado
+- Navegação por categorias clara e acessível
+- Feedback visual de carregamento consistente
 
 ---
 
-## ✅ 0.4) Decisões técnicas mínimas (sem overengineering)
-Aqui você decide coisas que afetam tudo depois.
+## ✅ FASE 2: Sistema de Ofertas Otimizado
+**Estimativa:** 2-3 dias  
+**Prioridade:** 🔴 ALTA
 
-### 0.4.1) Banco de dados (para histórico)
-Como você quer **histórico**, a decisão mais segura é:
+### Tarefas:
+- [ ] **2.1** Adicionar campos de cache ao banco de dados
+  - `bestPrice`: Menor preço disponível
+  - `worstPrice`: Maior preço disponível
+  - `offerScore`: Percentual de desconto calculado
+  - `lastPriceCheck`: Timestamp da última atualização
 
-- **Postgres** (banco de dados robusto e comum em produção)
-
-**Por quê?**
-- Você vai salvar muitos pontos de histórico (snapshots)
-- Vai consultar por período (7/30/90 dias)
-- Postgres lida bem com isso e evita retrabalho
-
-> Decisão Fase 0: **Postgres**.
-
-### 0.4.2) ORM (ferramenta para falar com o banco)
-**ORM** é uma ferramenta que permite manipular o banco com código, sem escrever SQL toda hora.
-
-- Recomendação: **Prisma** (muito usado com Next.js)
-
-> Decisão Fase 0: **Prisma**.
-
-### 0.4.3) Padrão de preço (importantíssimo)
-Defina e documente:
-
-- **Preço no banco em centavos (inteiro)**  
-  Ex.: `R$ 1.299,90` → **129990**
-
-Isso evita bugs e facilita cálculo/histórico.
-
-> Decisão Fase 0: **preçoEmCentavos (int)**.
-
-### 0.4.4) Modelo mental de dados (só conceito, sem implementar tudo ainda)
-Você vai trabalhar com 4 conceitos (mais tarde viram tabelas):
-
-1. **CPU (produto canônico)**: sua ficha “oficial” (ex.: Ryzen 5 5600)
-2. **Store (loja)**: Amazon/KaBuM!/etc
-3. **Offer (oferta)**: a CPU em uma loja (com URL daquela loja)
-4. **PriceSnapshot (histórico)**: um registro do preço em um momento
-
-> Decisão Fase 0: o histórico será por **snapshots**, não “atualizar um preço único”.
-
----
-
-## ✅ 0.5) Identidade mínima da marca (sem travar design)
-Como o nome está fechado (**PCHubBR**), faça só o mínimo para o projeto “ter cara”:
-
-1. **Nome oficial (sempre igual)**
-   - “**PCHubBR**” (não variar para PC Hub BR, etc.)
-
-2. **Slogan temporário**
-   - Sugestão: **“Histórico de preços de hardware.”**  
-   (curto e casa com seu MVP)
-
-3. **Cores (tokens simples)**
-   - 1 cor principal (ex.: azul/roxo)
-   - 1 cor de destaque (ex.: verde para “queda de preço”)
-
-> Isso é suficiente para header, favicon e layout inicial.
-
----
-
-## ✅ 0.6) Deploy “zerinho” (colocar no ar cedo)
-Colocar no ar cedo ajuda muito (até psicologicamente).
-
-1. Subir o site na **Vercel**
-2. Garantir que o deploy funciona a cada push (CI “automática” da Vercel)
-
-**Importante:** nesta fase, seu site pode ser **só um placeholder** com Home + “Em construção”.
-
----
+- [ ] **2.2** Criar migration Prisma
+```bash
+  npx prisma migrate dev --name add_offer_cache_fields
