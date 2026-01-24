@@ -7,9 +7,10 @@ import { formatBRLFromCents } from "@/lib/money";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { ProductCardSkeletonGrid } from "@/components/ProductCardSkeleton";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 type Product = {
   id: string;
@@ -23,176 +24,126 @@ type Product = {
   motherboard?: any;
 };
 
-type SortKey = "name" | "priceAsc" | "priceDesc";
+type SortKey = "priceAsc" | "priceDesc";
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [query, setQuery] = useState("");
-  const [type, setType] = useState<"ALL" | "CPU" | "GPU" | "MOTHERBOARD">("ALL");
-  const [brand, setBrand] = useState<"ALL" | "AMD" | "Intel" | "NVIDIA" | "Gigabyte" | "ASUS" | "MSI">("ALL");
   const [sort, setSort] = useState<SortKey>("priceAsc");
 
-  const [loggedIn, setLoggedIn] = useState<boolean>(false);
-  const [sessionLoaded, setSessionLoaded] = useState(false);
-
+  // Busca todos os produtos (sem filtro de tipo - exibe todas as categorias)
   useEffect(() => {
-    const typeParam = type === "ALL" ? "" : `?type=${type}`;
-    fetch(`/api/products${typeParam}`)
+    fetch("/api/products")
       .then((r) => r.json())
       .then(setProducts)
       .finally(() => setLoading(false));
-  }, [type]);
-
-  useEffect(() => {
-    fetch("/api/session")
-      .then((r) => r.json())
-      .then((d) => setLoggedIn(Boolean(d?.loggedIn)))
-      .finally(() => setSessionLoaded(true));
   }, []);
 
+  // Filtro e ordenação
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
+    // Filtra por busca
     let list = products.filter((p) => {
-      const matchQuery = !q || p.name.toLowerCase().includes(q);
-      const matchType = type === "ALL" || p.type === type;
-      const matchBrand = brand === "ALL" || p.brand === brand;
-      return matchQuery && matchType && matchBrand;
+      return !q || p.name.toLowerCase().includes(q);
     });
 
+    // Ordena por preço
     list = [...list].sort((a, b) => {
-      if (sort === "name") return a.name.localeCompare(b.name);
-
       const ap = a.offers[0]?.priceCents ?? Number.POSITIVE_INFINITY;
       const bp = b.offers[0]?.priceCents ?? Number.POSITIVE_INFINITY;
 
-      if (sort === "priceAsc") return ap - bp;
-      return bp - ap;
+      return sort === "priceAsc" ? ap - bp : bp - ap;
     });
 
     return list;
-  }, [products, query, type, brand, sort]);
+  }, [products, query, sort]);
 
   return (
-    <main className="mx-auto max-w-5xl p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold">PCHubBR</h1>
-          <p className="text-sm text-muted-foreground">Comparador de preços (MVP)</p>
-        </div>
+    <div className="space-y-6">
+      {/* Breadcrumbs */}
+      <Breadcrumbs items={[{ label: "Todas as Peças" }]} />
 
-        <div className="flex gap-2">
-          {!sessionLoaded ? null : loggedIn ? (
-            <Button asChild>
-              <Link href="/profile">Minha conta</Link>
-            </Button>
-          ) : (
-            <>
-              <Button asChild variant="outline">
-                <Link href="/login">Entrar</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/register">Criar conta</Link>
-              </Button>
-            </>
-          )}
-        </div>
+      {/* Cabeçalho */}
+      <div>
+        <h1 className="text-3xl font-bold">Todas as Peças</h1>
+        <p className="mt-2 text-muted-foreground">
+          Compare preços de CPUs, GPUs e Placas-Mãe nas melhores lojas
+        </p>
       </div>
 
-      <Separator className="my-6" />
+      <Separator />
 
+      {/* Barra de busca e ordenação */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        {/* Campo de busca */}
         <Input
-          placeholder="Buscar (ex.: 5600, RTX 4060...)"
+          placeholder="Buscar peças (ex.: Ryzen, RTX 4060, B550...)"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="md:max-w-sm"
         />
 
+        {/* Botões de ordenação */}
         <div className="flex flex-wrap gap-2">
-          {/* Filtro de Tipo */}
-          <Button variant={type === "ALL" ? "default" : "outline"} onClick={() => setType("ALL")}>
-            Todos
+          <Button
+            variant={sort === "priceAsc" ? "default" : "outline"}
+            onClick={() => setSort("priceAsc")}
+            size="sm"
+          >
+            Menor Preço
           </Button>
-          <Button variant={type === "CPU" ? "default" : "outline"} onClick={() => setType("CPU")}>
-            CPUs
-          </Button>
-          <Button variant={type === "GPU" ? "default" : "outline"} onClick={() => setType("GPU")}>
-            GPUs
-          </Button>
-          <Button variant={type === "MOTHERBOARD" ? "default" : "outline"} onClick={() => setType("MOTHERBOARD")}>
-            Placas-Mãe
-          </Button>
-
-          {/* Filtro de Marca (expandido) */}
-          <Button variant={brand === "ALL" ? "default" : "outline"} onClick={() => setBrand("ALL")}>
-            Todas Marcas
-          </Button>
-          <Button variant={brand === "AMD" ? "default" : "outline"} onClick={() => setBrand("AMD")}>
-            AMD
-          </Button>
-          <Button variant={brand === "Intel" ? "default" : "outline"} onClick={() => setBrand("Intel")}>
-            Intel
-          </Button>
-          <Button variant={brand === "NVIDIA" ? "default" : "outline"} onClick={() => setBrand("NVIDIA")}>
-            NVIDIA
-          </Button>
-          <Button variant={brand === "Gigabyte" ? "default" : "outline"} onClick={() => setBrand("Gigabyte")}>
-            Gigabyte
-          </Button>
-          <Button variant={brand === "ASUS" ? "default" : "outline"} onClick={() => setBrand("ASUS")}>
-            ASUS
-          </Button>
-          <Button variant={brand === "MSI" ? "default" : "outline"} onClick={() => setBrand("MSI")}>
-            MSI
-          </Button>
-
-          {/* Ordenação */}
-          <Button variant={sort === "priceAsc" ? "default" : "outline"} onClick={() => setSort("priceAsc")}>
-            Menor preço
-          </Button>
-          <Button variant={sort === "priceDesc" ? "default" : "outline"} onClick={() => setSort("priceDesc")}>
-            Maior preço
-          </Button>
-          <Button variant={sort === "name" ? "default" : "outline"} onClick={() => setSort("name")}>
-            Nome
+          <Button
+            variant={sort === "priceDesc" ? "default" : "outline"}
+            onClick={() => setSort("priceDesc")}
+            size="sm"
+          >
+            Maior Preço
           </Button>
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+      {/* Grid de produtos */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {loading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="mt-2 h-4 w-1/2" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="mt-2 h-4 w-1/3" />
-              </CardContent>
-            </Card>
-          ))
+          // Estado de loading: mostra 6 skeletons
+          <ProductCardSkeletonGrid count={6} />
         ) : filtered.length ? (
+          // Produtos encontrados
           filtered.map((p) => {
             const bestOffer = p.offers[0];
             const hasPrice = bestOffer !== undefined;
 
+            // Determina rota específica baseada no tipo
+            const productUrl =
+              p.type === "CPU"
+                ? `/cpu/${p.slug}`
+                : p.type === "GPU"
+                  ? `/gpu/${p.slug}`
+                  : p.type === "MOTHERBOARD"
+                    ? `/motherboard/${p.slug}`
+                    : `/products/${p.slug}`;
+
             return (
-              <Card key={p.id} className="transition hover:shadow-sm">
+              <Card key={p.id} className="transition-shadow hover:shadow-md">
                 <CardHeader>
                   <CardTitle className="text-base">
-                    <Link href={`/products/${p.slug}`} className="hover:underline">
+                    <Link
+                      href={productUrl}
+                      className="transition-colors hover:text-primary hover:underline"
+                    >
                       {p.name}
                     </Link>
                   </CardTitle>
 
+                  {/* Badges de informação */}
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary">{p.brand}</Badge>
                     <Badge variant="outline">{p.type}</Badge>
+
+                    {/* Specs específicas por tipo */}
                     {p.type === "CPU" && p.specsJson && (
                       <Badge variant="outline">
                         {p.specsJson.cores}c/{p.specsJson.threads}t
@@ -204,39 +155,58 @@ export default function Home() {
                       </Badge>
                     )}
                     {p.motherboard && (
-                      <Badge variant="outline">
-                        {p.motherboard.chipset}
-                      </Badge>
+                      <Badge variant="outline">{p.motherboard.chipset}</Badge>
                     )}
                   </div>
                 </CardHeader>
 
-                <CardContent className="flex flex-col gap-2">
+                <CardContent className="space-y-3">
+                  {/* Preço */}
                   <div className="text-sm">
-                    <span className="text-muted-foreground">Melhor preço:</span>{" "}
-                    <span className="font-semibold">
-                      {hasPrice ? formatBRLFromCents(bestOffer.priceCents) : "Sem ofertas"}
+                    <span className="text-muted-foreground">Melhor preço: </span>
+                    <span className="text-lg font-bold">
+                      {hasPrice
+                        ? formatBRLFromCents(bestOffer.priceCents)
+                        : "Sem ofertas"}
                     </span>
-                    {hasPrice ? (
-                      <span className="text-muted-foreground"> ({bestOffer.store.name})</span>
-                    ) : null}
+                    {hasPrice && (
+                      <span className="ml-1 text-muted-foreground">
+                        ({bestOffer.store.name})
+                      </span>
+                    )}
                   </div>
 
-                  <div className="text-sm text-muted-foreground">{p.offers.length} oferta(s)</div>
-
-                  <div>
-                    <Button asChild size="sm">
-                      <Link href={`/products/${p.slug}`}>Ver detalhes</Link>
-                    </Button>
+                  {/* Número de ofertas */}
+                  <div className="text-sm text-muted-foreground">
+                    {p.offers.length} oferta{p.offers.length !== 1 ? "s" : ""}{" "}
+                    disponível
+                    {p.offers.length !== 1 ? "is" : ""}
                   </div>
+
+                  {/* Botão - SEM comentário interno! */}
+                  <Button asChild size="sm" className="w-full md:w-auto">
+                    <Link href={productUrl}>Ver detalhes e ofertas</Link>
+                  </Button>
                 </CardContent>
               </Card>
             );
           })
         ) : (
-          <div className="text-sm text-muted-foreground">Nenhum produto encontrado.</div>
+          // Nenhum produto encontrado
+          <div className="col-span-2 flex flex-col items-center justify-center py-12 text-center">
+            <p className="text-lg font-medium">Nenhuma peça encontrada</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Tente ajustar sua busca ou{" "}
+              <button
+                onClick={() => setQuery("")}
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                limpar os filtros
+              </button>
+            </p>
+          </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }

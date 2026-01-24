@@ -12,32 +12,33 @@ import { Separator } from "@/components/ui/separator";
 import { ProductCardSkeletonGrid } from "@/components/ProductCardSkeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
-type Motherboard = {
+type Cpu = {
   id: string;
   name: string;
   slug: string;
   brand: string;
   type: string;
-  motherboard?: {
-    chipset?: string;
+  specsJson: {
+    cores?: number;
+    threads?: number;
     socket?: string;
-    formFactor?: string;
+    baseClock?: string;
   };
   offers: Array<{ priceCents: number; store: { name: string } }>;
 };
 
 type SortKey = "priceAsc" | "priceDesc";
 
-export default function MotherboardListPage() {
-  const [products, setProducts] = useState<Motherboard[]>([]);
+export default function CpuListPage() {
+  const [products, setProducts] = useState<Cpu[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("priceAsc");
 
-  // Busca apenas Placas-Mãe
+  // Busca apenas CPUs
   useEffect(() => {
-    fetch("/api/products?type=MOTHERBOARD")
+    fetch("/api/products?type=CPU")
       .then((r) => r.json())
       .then(setProducts)
       .finally(() => setLoading(false));
@@ -47,10 +48,12 @@ export default function MotherboardListPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
+    // Filtra por busca
     let list = products.filter((p) => {
       return !q || p.name.toLowerCase().includes(q);
     });
 
+    // Ordena por preço
     list = [...list].sort((a, b) => {
       const ap = a.offers[0]?.priceCents ?? Number.POSITIVE_INFINITY;
       const bp = b.offers[0]?.priceCents ?? Number.POSITIVE_INFINITY;
@@ -67,15 +70,15 @@ export default function MotherboardListPage() {
       <Breadcrumbs
         items={[
           { label: "Início", href: "/" },
-          { label: "Placas-Mãe" },
+          { label: "CPUs" },
         ]}
       />
 
       {/* Cabeçalho */}
       <div>
-        <h1 className="text-3xl font-bold">Placas-Mãe</h1>
+        <h1 className="text-3xl font-bold">Processadores (CPUs)</h1>
         <p className="mt-2 text-muted-foreground">
-          Compare preços de placas-mãe para Intel e AMD nas melhores lojas
+          Compare preços de processadores Intel e AMD nas melhores lojas
         </p>
       </div>
 
@@ -83,13 +86,15 @@ export default function MotherboardListPage() {
 
       {/* Barra de busca e ordenação */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        {/* Campo de busca */}
         <Input
-          placeholder="Buscar placas-mãe (ex.: B550, Z790...)"
+          placeholder="Buscar CPUs (ex.: Ryzen 5 5600, Core i5 13400...)"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="md:max-w-sm"
         />
 
+        {/* Botões de ordenação */}
         <div className="flex flex-wrap gap-2">
           <Button
             variant={sort === "priceAsc" ? "default" : "outline"}
@@ -113,37 +118,38 @@ export default function MotherboardListPage() {
         {loading ? (
           <ProductCardSkeletonGrid count={6} />
         ) : filtered.length ? (
-          filtered.map((mb) => {
-            const bestOffer = mb.offers[0];
+          filtered.map((cpu) => {
+            const bestOffer = cpu.offers[0];
             const hasPrice = bestOffer !== undefined;
 
             return (
-              <Card key={mb.id} className="transition-shadow hover:shadow-md">
+              <Card key={cpu.id} className="transition-shadow hover:shadow-md">
                 <CardHeader>
                   <CardTitle className="text-base">
                     <Link
-                      href={`/motherboard/${mb.slug}`}
+                      href={`/cpu/${cpu.slug}`}
                       className="transition-colors hover:text-primary hover:underline"
                     >
-                      {mb.name}
+                      {cpu.name}
                     </Link>
                   </CardTitle>
 
+                  {/* Badges de informação */}
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">{mb.brand}</Badge>
-                    {mb.motherboard?.chipset && (
-                      <Badge variant="outline">{mb.motherboard.chipset}</Badge>
+                    <Badge variant="secondary">{cpu.brand}</Badge>
+                    {cpu.specsJson.cores && (
+                      <Badge variant="outline">
+                        {cpu.specsJson.cores}c/{cpu.specsJson.threads}t
+                      </Badge>
                     )}
-                    {mb.motherboard?.socket && (
-                      <Badge variant="outline">{mb.motherboard.socket}</Badge>
-                    )}
-                    {mb.motherboard?.formFactor && (
-                      <Badge variant="outline">{mb.motherboard.formFactor}</Badge>
+                    {cpu.specsJson.socket && (
+                      <Badge variant="outline">{cpu.specsJson.socket}</Badge>
                     )}
                   </div>
                 </CardHeader>
 
                 <CardContent className="space-y-3">
+                  {/* Preço */}
                   <div className="text-sm">
                     <span className="text-muted-foreground">Melhor preço: </span>
                     <span className="text-lg font-bold">
@@ -156,21 +162,24 @@ export default function MotherboardListPage() {
                     )}
                   </div>
 
+                  {/* Número de ofertas */}
                   <div className="text-sm text-muted-foreground">
-                    {mb.offers.length} oferta{mb.offers.length !== 1 ? "s" : ""} disponível
-                    {mb.offers.length !== 1 ? "is" : ""}
+                    {cpu.offers.length} oferta{cpu.offers.length !== 1 ? "s" : ""} disponível
+                    {cpu.offers.length !== 1 ? "is" : ""}
                   </div>
 
+                  {/* Botão */}
                   <Button asChild size="sm" className="w-full md:w-auto">
-                    <Link href={`/motherboard/${mb.slug}`}>Ver detalhes e ofertas</Link>
+                    <Link href={`/cpu/${cpu.slug}`}>Ver detalhes e ofertas</Link>
                   </Button>
                 </CardContent>
               </Card>
             );
           })
         ) : (
+          // Nenhum produto encontrado
           <div className="col-span-2 flex flex-col items-center justify-center py-12 text-center">
-            <p className="text-lg font-medium">Nenhuma placa-mãe encontrada</p>
+            <p className="text-lg font-medium">Nenhuma CPU encontrada</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Tente ajustar sua busca ou{" "}
               <button

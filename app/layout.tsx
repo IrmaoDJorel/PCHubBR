@@ -1,12 +1,11 @@
 import "./globals.css";
-import Link from "next/link";
 import { Providers } from "./providers";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { Separator } from "@/components/ui/separator";
+import { Header } from "@/components/Header";
+import { CategoryNav } from "@/components/CategoryNav";
 
 export const metadata = {
-  title: "PCHubBR",
-  description: "Comparador de preços de hardware (MVP)",
+  title: "PCHubBR - Comparador de Preços de Hardware",
+  description: "Compare preços de CPUs, GPUs e Placas-Mãe nas melhores lojas do Brasil. Crie alertas de preço e economize na montagem do seu PC.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -14,20 +13,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" suppressHydrationWarning>
       <body>
         <Providers>
-          <header className="border-b">
-            <div className="mx-auto flex max-w-5xl items-center justify-between p-4">
-              <Link href="/" className="font-semibold">
-                PCHubBR
-              </Link>
+          {/* Header com logo, tema e menu de usuário */}
+          <Header />
 
-              <div className="flex items-center gap-2">
-                <ThemeToggle />
-              </div>
-            </div>
-            <Separator />
-          </header>
+          {/* Barra de categorias */}
+          <CategoryNav />
 
-          <div className="mx-auto max-w-5xl p-6">{children}</div>
+          {/* Conteúdo principal das páginas */}
+          <main className="mx-auto max-w-5xl p-6">
+            {children}
+          </main>
         </Providers>
       </body>
     </html>
