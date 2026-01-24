@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * GET /api/products/counts
+ * Retorna contagem de produtos por categoria
+ */
 export async function GET() {
   try {
-    // Conta CPUs na tabela Cpu
+    // Conta CPUs (tabela legada)
     const cpuCount = await prisma.cpu.count();
 
-    // Conta GPUs e Motherboards na tabela Product
+    // Conta produtos genéricos por tipo
     const gpuCount = await prisma.product.count({
       where: { type: "GPU" },
     });
@@ -18,16 +22,23 @@ export async function GET() {
     const total = cpuCount + gpuCount + motherboardCount;
 
     return NextResponse.json({
-      total,
       cpu: cpuCount,
       gpu: gpuCount,
       motherboard: motherboardCount,
+      total,
     });
   } catch (error) {
-    console.error("Erro ao contar produtos:", error);
+    console.error("Erro ao buscar contadores:", error);
+    
+    // Retorna zeros em caso de erro
     return NextResponse.json(
-      { error: "Erro ao contar produtos" },
-      { status: 500 }
+      {
+        cpu: 0,
+        gpu: 0,
+        motherboard: 0,
+        total: 0,
+      },
+      { status: 200 } // Retorna 200 mesmo com erro para não quebrar o frontend
     );
   }
 }

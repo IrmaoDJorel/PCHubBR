@@ -12,31 +12,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FavoriteProductButton } from "@/components/ui/FavoriteProductButton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import type { Metadata } from "next";
-
-type Props = {
-  params: Promise<{ slug: string }>;
-};
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
-  
-  // Busca dados do produto (simplificado)
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/products/${slug}`);
-    const gpu = await res.json();
-    
-    return {
-      title: `${gpu.name} - Comparar Preços | PCHubBR`,
-      description: `Compare preços do ${gpu.name} (${gpu.brand}) nas melhores lojas. ${gpu.specsJson?.vramGb || ''}GB VRAM, Chipset ${gpu.specsJson?.chipset || ''}. Encontre a melhor oferta!`,
-    };
-  } catch {
-    return {
-      title: "Placas de Vídeo - PCHubBR",
-      description: "Compare preços de placas de vídeo nas melhores lojas.",
-    };
-  }
-}
 
 type GpuDetail = {
   id: string;

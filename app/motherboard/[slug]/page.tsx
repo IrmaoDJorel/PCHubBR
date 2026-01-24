@@ -12,31 +12,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FavoriteProductButton } from "@/components/ui/FavoriteProductButton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import type { Metadata } from "next";
-
-type Props = {
-  params: Promise<{ slug: string }>;
-};
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
-  
-  // Busca dados do produto (simplificado)
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/products/${slug}`);
-    const motherboard = await res.json();
-    
-    return {
-      title: `${motherboard.name} - Comparar Preços | PCHubBR`,
-      description: `Compare preços da ${motherboard.name} (${motherboard.brand}) nas melhores lojas. ${motherboard.specsJson?.chipset || ''}, Socket ${motherboard.specsJson?.socket || ''}. Encontre a melhor oferta!`,
-    };
-  } catch {
-    return {
-      title: "Placas-Mãe - PCHubBR",
-      description: "Compare preços de placas-mãe nas melhores lojas.",
-    };
-  }
-}
 
 type MotherboardDetail = {
   id: string;

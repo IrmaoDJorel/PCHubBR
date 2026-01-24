@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ProductCardSkeletonGrid } from "@/components/ProductCardSkeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { ProductTypeBadge, SpecBadge } from "@/components/ui/product-badge";
 
 type Product = {
   id: string;
@@ -127,8 +128,10 @@ export default function Home() {
                     : `/products/${p.slug}`;
 
             return (
-              <Card key={p.id} className="transition-shadow hover:shadow-md">
-                <CardHeader>
+              <Card
+                key={p.id}
+                className="group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] hover:border-primary/50">
+                  <CardHeader>
                   <CardTitle className="text-base">
                     <Link
                       href={productUrl}
@@ -141,21 +144,39 @@ export default function Home() {
                   {/* Badges de informação */}
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary">{p.brand}</Badge>
-                    <Badge variant="outline">{p.type}</Badge>
+                    <ProductTypeBadge type={p.type as "CPU" | "GPU" | "MOTHERBOARD"} />
 
                     {/* Specs específicas por tipo */}
                     {p.type === "CPU" && p.specsJson && (
-                      <Badge variant="outline">
-                        {p.specsJson.cores}c/{p.specsJson.threads}t
-                      </Badge>
+                      <>
+                        {p.specsJson.cores && (
+                          <SpecBadge>
+                            {p.specsJson.cores}c/{p.specsJson.threads}t
+                          </SpecBadge>
+                        )}
+                        {p.specsJson.socket && (
+                          <SpecBadge>{p.specsJson.socket}</SpecBadge>
+                        )}
+                      </>
                     )}
                     {p.gpu && (
-                      <Badge variant="outline">
-                        {p.gpu.vramGb}GB {p.gpu.vramType}
-                      </Badge>
+                      <>
+                        {p.gpu.vramGb && (
+                          <SpecBadge>
+                            {p.gpu.vramGb}GB {p.gpu.vramType}
+                          </SpecBadge>
+                        )}
+                      </>
                     )}
                     {p.motherboard && (
-                      <Badge variant="outline">{p.motherboard.chipset}</Badge>
+                      <>
+                        {p.motherboard.chipset && (
+                          <SpecBadge>{p.motherboard.chipset}</SpecBadge>
+                        )}
+                        {p.motherboard.formFactor && (
+                          <SpecBadge>{p.motherboard.formFactor}</SpecBadge>
+                        )}
+                      </>
                     )}
                   </div>
                 </CardHeader>
