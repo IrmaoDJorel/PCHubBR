@@ -36,7 +36,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<SortKey>("priceAsc");
+  const [sort, setSort] = useState<SortKey>("bestOffer");
+  const [showAll, setShowAll] = useState(false);
 
   // Busca todos os produtos (sem filtro de tipo - exibe todas as categorias)
   useEffect(() => {
@@ -55,39 +56,142 @@ export default function Home() {
       return !q || p.name.toLowerCase().includes(q);
     });
 
-    // Ordena por preço ou oferta
+    // Se não está mostrando todos, filtra apenas produtos com offerScore >= 10%
+    if (!showAll) {
+      list = list.filter((p) => p.offerScore && p.offerScore >= 10);
+    }
+
+    // Ordena
     list = [...list].sort((a, b) => {
       if (sort === "bestOffer") {
-        //Ordena por offerScore (maior primeiro)
         const aScore = a.offerScore ?? -1;
         const bScore = b.offerScore ?? -1;
         return bScore - aScore; // Decrescente (maior desconto primeiro)
       }
 
-      // Ordenação por preço (existente)
       const ap = a.offers[0]?.priceCents ?? Number.POSITIVE_INFINITY;
       const bp = b.offers[0]?.priceCents ?? Number.POSITIVE_INFINITY;
 
       return sort === "priceAsc" ? ap - bp : bp - ap;
     });
 
+    // Limita a 20 produtos quando mostra só ofertas
+    if (!showAll) {
+      list = list.slice(0, 20);
+    }
+
     return list;
-  }, [products, query, sort]);
+  }, [products, query, sort, showAll]);
+
+  // Contador de ofertas ativas (produtos com offerScore >= 10%)
+  const activeOffersCount = useMemo(() => {
+    return products.filter((p) => p.offerScore && p.offerScore >= 10).length;
+  }, [products]);
 
   return (
     <div className="space-y-6">
       {/* Breadcrumbs */}
-      <Breadcrumbs items={[{ label: "Todas as Peças" }]} />
+      <Breadcrumbs
+        items={[{ label: showAll ? "Todas as Peças" : "Melhores Ofertas" }]}
+      />
 
       {/* Cabeçalho */}
       <div>
-        <h1 className="text-3xl font-bold">Todas as Peças</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold">
+            {showAll ? "Todas as Peças" : "🔥 Melhores Ofertas"}
+          </h1>
+
+          {/* Badge de contador de ofertas */}
+          {!showAll && activeOffersCount > 0 && (
+            <span className="rounded-full bg-red-500/10 px-3 py-1 text-sm font-semibold text-red-600 dark:text-red-400">
+              {activeOffersCount} ofertas ativas
+            </span>
+          )}
+        </div>
+
         <p className="mt-2 text-muted-foreground">
-          Compare preços de CPUs, GPUs e Placas-Mãe nas melhores lojas
+          {showAll
+            ? "Compare preços de CPUs, GPUs e Placas-Mãe nas melhores lojas"
+            : "Os maiores descontos do momento em hardware de PC"}
         </p>
       </div>
 
       <Separator />
+
+      {/* Toggle para mostrar todas as peças ou só ofertas */}
+      <div className="flex items-center justify-between rounded-lg border bg-muted/50 p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+            {showAll ? (
+              <span className="text-xl">📦</span>
+            ) : (
+              <span className="text-xl">🔥</span>
+            )}
+          </div>
+          <div>
+            <p className="font-medium">
+              {showAll
+                ? "Mostrando todos os produtos"
+                : "Mostrando apenas ofertas especiais"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {showAll
+                ? `${filtered.length} produtos disponíveis`
+                : `Top ${Math.min(filtered.length, 20)} melhores descontos`}
+            </p>
+          </div>
+        </div>
+
+        <Button
+          variant={showAll ? "outline" : "default"}
+          onClick={() => setShowAll(!showAll)}
+          size="sm"
+        >
+          {showAll ? "Ver Apenas Ofertas" : "Ver Todas as Peças"}
+        </Button>
+      </div>
+
+      {/* Estatísticas (só aparece quando mostra ofertas) */}
+      {!showAll && filtered.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-3xl font-bold text-red-600 dark:text-red-400">
+                  {Math.max(...filtered.map((p) => p.offerScore || 0)).toFixed(0)}%
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">Maior desconto</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                  {filtered.length}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">Ofertas ativas</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                  {(
+                    filtered.reduce((sum, p) => sum + (p.offerScore || 0), 0) /
+                    filtered.length
+                  ).toFixed(0)}%
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">Desconto médio</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Barra de busca e ordenação */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -102,6 +206,13 @@ export default function Home() {
         {/* Botões de ordenação */}
         <div className="flex flex-wrap gap-2">
           <Button
+            variant={sort === "bestOffer" ? "default" : "outline"}
+            onClick={() => setSort("bestOffer")}
+            size="sm"
+          >
+            🔥 Melhor Oferta
+          </Button>
+          <Button
             variant={sort === "priceAsc" ? "default" : "outline"}
             onClick={() => setSort("priceAsc")}
             size="sm"
@@ -114,13 +225,6 @@ export default function Home() {
             size="sm"
           >
             Maior Preço
-          </Button>
-          <Button
-            variant={sort === "bestOffer" ? "default" : "outline"}
-            onClick={() => setSort("bestOffer")}
-            size="sm"
-          >
-            🔥 Melhor Oferta
           </Button>
         </div>
       </div>
@@ -149,17 +253,19 @@ export default function Home() {
             return (
               <Card
                 key={p.id}
-                className="group transition-all duration-300 hover:shadow-lg hover:scale-[1.02] hover:border-primary/50">
-                  <CardHeader>
-                  <CardTitle className="text-base">
+                className="group animate-in fade-in-50 slide-in-from-bottom-4 transition-all duration-300 hover:scale-[1.02] hover:border-primary/50 hover:shadow-lg"
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-start justify-between gap-2 text-base">
                     <Link
                       href={productUrl}
                       className="transition-colors hover:text-primary hover:underline"
                     >
                       {p.name}
                     </Link>
-                      {/* Badge de oferta */}
-                      {p.offerScore && p.offerScore >= 10 && (
+
+                    {/* Badge de oferta */}
+                    {p.offerScore && p.offerScore >= 10 && (
                       <OfferBadge offerScore={p.offerScore} size="sm" />
                     )}
                   </CardTitle>
@@ -167,7 +273,9 @@ export default function Home() {
                   {/* Badges de informação */}
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary">{p.brand}</Badge>
-                    <ProductTypeBadge type={p.type as "CPU" | "GPU" | "MOTHERBOARD"} />
+                    <ProductTypeBadge
+                      type={p.type as "CPU" | "GPU" | "MOTHERBOARD"}
+                    />
 
                     {/* Specs específicas por tipo */}
                     {p.type === "CPU" && p.specsJson && (
@@ -220,13 +328,16 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/*Indicador de economia */}
-                  {p.bestPriceCents && p.worstPriceCents && p.worstPriceCents > p.bestPriceCents && (
-                    <SavingsIndicator
-                      bestPrice={p.bestPriceCents}
-                      worstPrice={p.worstPriceCents}
-                    />
-                  )}
+                  {/* Indicador de economia */}
+                  {p.bestPriceCents &&
+                    p.worstPriceCents &&
+                    p.worstPriceCents > p.bestPriceCents && (
+                      <SavingsIndicator
+                        bestPrice={p.bestPriceCents}
+                        worstPrice={p.worstPriceCents}
+                      />
+                    )}
+
                   {/* Número de ofertas */}
                   <div className="text-sm text-muted-foreground">
                     {p.offers.length} oferta{p.offers.length !== 1 ? "s" : ""}{" "}
@@ -234,7 +345,7 @@ export default function Home() {
                     {p.offers.length !== 1 ? "is" : ""}
                   </div>
 
-                  {/* Botão - SEM comentário interno! */}
+                  {/* Botão */}
                   <Button asChild size="sm" className="w-full md:w-auto">
                     <Link href={productUrl}>Ver detalhes e ofertas</Link>
                   </Button>
@@ -245,16 +356,38 @@ export default function Home() {
         ) : (
           // Nenhum produto encontrado
           <div className="col-span-2 flex flex-col items-center justify-center py-12 text-center">
-            <p className="text-lg font-medium">Nenhuma peça encontrada</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Tente ajustar sua busca ou{" "}
-              <button
-                onClick={() => setQuery("")}
-                className="text-primary underline-offset-4 hover:underline"
-              >
-                limpar os filtros
-              </button>
-            </p>
+            {showAll ? (
+              <>
+                <p className="text-lg font-medium">Nenhuma peça encontrada</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Tente ajustar sua busca ou{" "}
+                  <button
+                    onClick={() => setQuery("")}
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    limpar os filtros
+                  </button>
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="mb-4 text-6xl">😔</div>
+                <p className="text-lg font-medium">
+                  Nenhuma oferta especial no momento
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Novas ofertas aparecem quando há diferença significativa de
+                  preços entre lojas
+                </p>
+                <Button
+                  onClick={() => setShowAll(true)}
+                  variant="outline"
+                  className="mt-4"
+                >
+                  Ver todos os produtos
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>
