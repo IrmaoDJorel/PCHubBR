@@ -36,7 +36,11 @@ export function FilterSection({
         />
       </button>
 
-      {isOpen && <div className="mt-3 space-y-2">{children}</div>}
+      {isOpen && (
+        <div className="mt-3 animate-in fade-in-50 slide-in-from-top-2 space-y-2">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
