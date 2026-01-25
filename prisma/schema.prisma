@@ -8,31 +8,33 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// EXISTENTE (não mexer)
 model Cpu {
-  id         String   @id @default(cuid())
-  name       String   @unique
-  slug       String   @unique
+  id         String @id @default(cuid())
+  name       String @unique
+  slug       String @unique
   brand      String
   cores      Int
   threads    Int
   baseClock  Float
   boostClock Float?
   socket     String
-  
-  // ✅ NOVOS CAMPOS PARA FILTROS
+
   hasIntegratedGraphics Boolean @default(false)
-  tdp                   Int?    // TDP em Watts
-  
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  tdp                   Int? // TDP em Watts
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bestPriceCents  Int? // Menor preço entre todas as ofertas
+  worstPriceCents Int? // Maior preço entre todas as ofertas
+  offerScore      Float? // Percentual de desconto: (max - min) / max * 100
+  lastPriceCheck  DateTime? // Última vez que os preços foram verificados
 
   offers         Offer[]
   priceSnapshots PriceSnapshot[]
   alerts         PriceAlert[]
 }
 
-// EXISTENTE (não mexer)
 model Store {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -45,7 +47,6 @@ model Store {
   productPriceSnapshots ProductPriceSnapshot[]
 }
 
-// EXISTENTE (não mexer, mas vamos expandir para Product)
 model Offer {
   id         String   @id @default(cuid())
   cpuId      String
@@ -59,7 +60,6 @@ model Offer {
   store Store @relation(fields: [storeId], references: [id])
 }
 
-// EXISTENTE (não mexer)
 model PriceSnapshot {
   id         String   @id @default(cuid())
   cpuId      String
@@ -74,7 +74,6 @@ model PriceSnapshot {
   @@unique([cpuId, storeId, date])
 }
 
-// EXISTENTE (não mexer)
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -90,7 +89,6 @@ model User {
   favorites Favorite[]
 }
 
-// EXISTENTE (não mexer)
 model PriceAlert {
   id               String    @id @default(cuid())
   userId           String
@@ -109,7 +107,6 @@ model PriceAlert {
   @@index([cpuId, isActive])
 }
 
-// EXISTENTE (não mexer)
 model PriceAlertEvent {
   id         String   @id @default(cuid())
   alertId    String
@@ -122,7 +119,6 @@ model PriceAlertEvent {
   @@index([alertId, createdAt])
 }
 
-// EXISTENTE (não mexer)
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -142,7 +138,6 @@ model Account {
   @@unique([provider, providerAccountId])
 }
 
-// EXISTENTE (não mexer)
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
@@ -152,7 +147,6 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// EXISTENTE (não mexer)
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -161,14 +155,12 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// EXISTENTE (expandir enum depois)
 enum FavoriteItemType {
   CPU
   GPU
   MOTHERBOARD
 }
 
-// EXISTENTE (não mexer)
 model Favorite {
   id        String           @id @default(cuid())
   userId    String
@@ -182,7 +174,6 @@ model Favorite {
   @@index([userId, itemType])
 }
 
-// NOVO: Produto genérico (para novas categorias)
 enum ProductType {
   GPU
   MOTHERBOARD
@@ -198,6 +189,11 @@ model Product {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
+  bestPriceCents  Int? // Menor preço entre todas as ofertas
+  worstPriceCents Int? // Maior preço entre todas as ofertas
+  offerScore      Float? // Percentual de desconto: (max - min) / max * 100
+  lastPriceCheck  DateTime? // Última vez que os preços foram verificados
+
   offers         ProductOffer[]
   priceSnapshots ProductPriceSnapshot[]
   gpu            Gpu?
@@ -207,7 +203,6 @@ model Product {
   @@index([type, brand])
 }
 
-// NOVO: Oferta para produtos genéricos
 model ProductOffer {
   id           String   @id @default(cuid())
   productId    String
@@ -224,7 +219,6 @@ model ProductOffer {
   store   Store   @relation(fields: [storeId], references: [id])
 }
 
-// NOVO: Histórico de preço para produtos genéricos
 model ProductPriceSnapshot {
   id         String   @id @default(cuid())
   productId  String
@@ -240,40 +234,39 @@ model ProductPriceSnapshot {
 }
 
 model Gpu {
-  id         String   @id @default(cuid())
-  productId  String   @unique
+  id         String @id @default(cuid())
+  productId  String @unique
   vramGb     Int
-  vramType   String   // GDDR6, GDDR5X, etc.
-  baseClock  Int      // MHz
-  boostClock Int?     // MHz
-  tdp        Int      // Watts
-  interface  String   // PCIe 4.0 x16, etc.
-  
-  // ✅ NOVO CAMPO PARA FILTROS
-  chipset    String?  // Ex: "RTX 4060", "RX 7600 XT"
-  
-  createdAt  DateTime @default(now())
+  vramType   String // GDDR6, GDDR5X, etc.
+  baseClock  Int // MHz
+  boostClock Int? // MHz
+  tdp        Int // Watts
+  interface  String // PCIe 4.0 x16, etc.
+
+  chipset String? // Ex: "RTX 4060", "RX 7600 XT"
+
+  createdAt DateTime @default(now())
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Motherboard {
-  id         String   @id @default(cuid())
-  productId  String   @unique
-  chipset    String   // B450, Z590, etc.
-  socket     String   // AM4, LGA1200, etc.
-  formFactor String   // ATX, Micro-ATX, Mini-ITX
+  id         String @id @default(cuid())
+  productId  String @unique
+  chipset    String // B450, Z590, etc.
+  socket     String // AM4, LGA1200, etc.
+  formFactor String // ATX, Micro-ATX, Mini-ITX
   ramSlots   Int
-  ramType    String   // DDR4, DDR5
+  ramType    String // DDR4, DDR5
   maxRamGb   Int
-  
-  maxRamSpeed Int?    // MHz (ex: 3200, 5600)
+
+  maxRamSpeed Int? // MHz (ex: 3200, 5600)
   wifi        Boolean @default(false)
-  
-  sataPorts  Int
-  m2Slots    Int
-  usbPorts   Json     // { usb3: 4, usb2: 2 }
-  createdAt  DateTime @default(now())
+
+  sataPorts Int
+  m2Slots   Int
+  usbPorts  Json // { usb3: 4, usb2: 2 }
+  createdAt DateTime @default(now())
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }

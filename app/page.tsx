@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { ProductCardSkeletonGrid } from "@/components/ProductCardSkeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { ProductTypeBadge, SpecBadge } from "@/components/ui/product-badge";
+import { OfferBadge, SavingsIndicator } from "@/components/ui/offer-badge";
 
 type Product = {
   id: string;
@@ -23,9 +24,12 @@ type Product = {
   offers: Array<{ priceCents: number; store: { name: string } }>;
   gpu?: any;
   motherboard?: any;
+  bestPriceCents?: number | null;
+  worstPriceCents?: number | null;
+  offerScore?: number | null;
 };
 
-type SortKey = "priceAsc" | "priceDesc";
+type SortKey = "priceAsc" | "priceDesc" | "bestOffer";
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -51,8 +55,16 @@ export default function Home() {
       return !q || p.name.toLowerCase().includes(q);
     });
 
-    // Ordena por preço
+    // Ordena por preço ou oferta
     list = [...list].sort((a, b) => {
+      if (sort === "bestOffer") {
+        //Ordena por offerScore (maior primeiro)
+        const aScore = a.offerScore ?? -1;
+        const bScore = b.offerScore ?? -1;
+        return bScore - aScore; // Decrescente (maior desconto primeiro)
+      }
+
+      // Ordenação por preço (existente)
       const ap = a.offers[0]?.priceCents ?? Number.POSITIVE_INFINITY;
       const bp = b.offers[0]?.priceCents ?? Number.POSITIVE_INFINITY;
 
@@ -103,6 +115,13 @@ export default function Home() {
           >
             Maior Preço
           </Button>
+          <Button
+            variant={sort === "bestOffer" ? "default" : "outline"}
+            onClick={() => setSort("bestOffer")}
+            size="sm"
+          >
+            🔥 Melhor Oferta
+          </Button>
         </div>
       </div>
 
@@ -139,6 +158,10 @@ export default function Home() {
                     >
                       {p.name}
                     </Link>
+                      {/* Badge de oferta */}
+                      {p.offerScore && p.offerScore >= 10 && (
+                      <OfferBadge offerScore={p.offerScore} size="sm" />
+                    )}
                   </CardTitle>
 
                   {/* Badges de informação */}
@@ -197,6 +220,13 @@ export default function Home() {
                     )}
                   </div>
 
+                  {/*Indicador de economia */}
+                  {p.bestPriceCents && p.worstPriceCents && p.worstPriceCents > p.bestPriceCents && (
+                    <SavingsIndicator
+                      bestPrice={p.bestPriceCents}
+                      worstPrice={p.worstPriceCents}
+                    />
+                  )}
                   {/* Número de ofertas */}
                   <div className="text-sm text-muted-foreground">
                     {p.offers.length} oferta{p.offers.length !== 1 ? "s" : ""}{" "}

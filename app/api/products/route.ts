@@ -9,6 +9,7 @@ export async function GET(request: Request) {
 
   // Se type é null ou "CPU", buscar CPUs
   if (!type || type === "CPU") {
+    // Query de CPUs
     const cpus = await prisma.cpu.findMany({
       select: {
         id: true,
@@ -17,26 +18,45 @@ export async function GET(request: Request) {
         brand: true,
         cores: true,
         threads: true,
+        socket: true,
+        baseClock: true,
+        boostClock: true,
+        bestPriceCents: true,
+        worstPriceCents: true,
+        offerScore: true,
+        lastPriceCheck: true,
         offers: {
           select: {
             priceCents: true,
-            store: { select: { name: true } },
+            url: true,
+            store: {
+              select: { name: true }
+            }
           },
           orderBy: { priceCents: "asc" },
-          take: 1,
         },
       },
     });
 
     // Converter para formato Product
-    const cpuProducts = cpus.map((c) => ({
-      id: c.id,
+    const cpuProducts = cpus.map(cpu => ({
+      id: cpu.id,
       type: "CPU",
-      name: c.name,
-      slug: c.slug,
-      brand: c.brand,
-      specsJson: { cores: c.cores, threads: c.threads },
-      offers: c.offers,
+      name: cpu.name,
+      slug: cpu.slug,
+      brand: cpu.brand,
+      specsJson: {
+        cores: cpu.cores,
+        threads: cpu.threads,
+        socket: cpu.socket,
+        baseClock: cpu.baseClock,
+        boostClock: cpu.boostClock,
+      },
+      bestPriceCents: cpu.bestPriceCents,
+      worstPriceCents: cpu.worstPriceCents,
+      offerScore: cpu.offerScore,
+      lastPriceCheck: cpu.lastPriceCheck,
+      offers: cpu.offers,
       gpu: null,
       motherboard: null,
     }));
