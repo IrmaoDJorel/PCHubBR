@@ -6,7 +6,7 @@ async function main() {
   console.log("🌱 Adicionando ofertas fake para testes...");
 
   // Busca lojas existentes
-  const kabum = await prisma.store.findFirst({ where: { name: "Kabum" } });
+  const kabum = await prisma.store.findFirst({ where: { name: "KaBuM!" } });
   const terabyte = await prisma.store.findFirst({ where: { name: "TerabyteShop" } });
   
   if (!kabum || !terabyte) {
