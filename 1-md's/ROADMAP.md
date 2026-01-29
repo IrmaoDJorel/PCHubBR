@@ -133,41 +133,122 @@ Criar páginas dedicadas para CPUs, GPUs e Placas-Mãe com filtros contextuais e
 
 ---
 
-## ✅ FASE 4: Melhorias de UX (1-2 dias)
+## ✅ FASE 4: Expansão Total do Catálogo (3-5 dias)
 
 ### Objetivos
-Polir experiência do usuário com recursos visuais e de usabilidade.
+Expandir a base de dados para cobrir todas as categorias essenciais de hardware, transformando o site em um comparador completo.
 
 ### Tarefas
-- [ ] **4.1** Sistema de imagens de produtos
-  - Adicionar campos `imageUrl` e `imageThumbnail` ao schema
-  - Implementar placeholders (logos de marcas)
-  - Otimização com Next.js Image
-  - Lazy loading
+- [ ] **4.1** Atualizar schema para novas categorias
+  - Implementar modelos no Prisma para:
+    - `RAM` (Capacidade, Velocidade, Tipo DDR, Latência)
+    - `Storage` (Tipo SSD/HDD, Interface, Capacidade, Leitura/Escrita)
+    - `PSU` (Potência, Certificação 80 Plus, Modularidade)
+    - `Case` (Formato, Janela Lateral, Cor)
+    - `Cooler` (Tipo Air/Water, TDP, Sockets suportados)
+  - Executar migrations e atualizar o client do Prisma
 
-- [ ] **4.2** Indicadores de tendência de preço
-  - Ícones visuais nos cards:
-    - 📈 Preço subindo (vermelho)
-    - 📉 Preço caindo (verde)
-    - ➡️ Preço estável (cinza)
-  - Tooltip com informação: "Preço caiu 15% na última semana"
+- [ ] **4.2** Implementar scrapers para novas categorias
+  - Adaptar a lógica de busca de preços para os novos tipos de hardware
+  - Mapear atributos específicos de cada loja para o schema interno
+  - Garantir a normalização de nomes (ex: "8GB" vs "8 GB")
 
-- [ ] **4.3** Otimização mobile
-  - Testar e ajustar responsividade de todos os componentes
-  - Navbar de categorias com scroll horizontal
-  - Filtros em drawer lateral (hamburger menu)
-  - Cards responsivos (1 coluna mobile, 2-4 desktop)
-  - Melhorar touch targets (botões maiores)
+- [ ] **4.3** Atualizar navegação e filtros globais
+  - Adicionar as novas categorias na `<Navbar />` (com scroll horizontal mobile)
+  - Criar páginas dinâmicas para cada nova categoria
+  - Implementar filtros específicos para RAM (DDR4/DDR5) e SSD (NVMe/SATA)
 
-- [ ] **4.4** Estados vazios (Empty States)
-  - Mensagens amigáveis quando não há resultados
-  - Sugestões de ação (ajustar filtros, voltar)
-  - Ilustrações ou ícones
+- [ ] **4.4** Otimização de busca e indexação
+  - Melhorar o algoritmo de busca para suportar termos genéricos (ex: "SSD 1TB")
+  - Implementar paginação eficiente para categorias com muitos itens
 
 ### Arquivos Envolvidos
 - `prisma/schema.prisma`
-- Todos os componentes de produto
-- `globals.css` (ajustes mobile)
+- `components/Navbar.tsx`
+- `app/[category]/page.tsx` (rota dinâmica)
+- `lib/scrapers/` (novos módulos)
+
+---
+
+## ✅ FASE 5: Sistema de Comparação Lado a Lado (3-4 dias)
+
+### Objetivos
+Permitir que o usuário compare as especificações técnicas e preços de até 4 produtos simultaneamente.
+
+### Tarefas
+- [ ] **5.1** Criar contexto de comparação (`CompareContext`)
+  - Gerenciar estado global de itens selecionados
+  - Limite de 4 itens por categoria
+  - Persistência temporária em LocalStorage
+
+- [ ] **5.2** Desenvolver interface de seleção
+  - Adicionar checkbox/botão "Comparar" nos cards de produto
+  - Criar barra flutuante inferior exibindo itens selecionados e botão "Comparar Agora"
+
+- [ ] **5.3** Implementar página de comparação (`/compare`)
+  - Tabela comparativa dinâmica destacando diferenças
+  - Destaque visual para o melhor preço entre os itens comparados
+  - Botões de compra direta para cada item da tabela
+
+### Arquivos Envolvidos
+- `context/CompareContext.tsx` (novo)
+- `components/CompareBar.tsx` (novo)
+- `app/compare/page.tsx` (novo)
+- `components/ProductCard.tsx`
+
+---
+
+## ✅ FASE 6: Build de PC Digital & Compatibilidade (5-7 dias)
+
+### Objetivos
+Implementar a funcionalidade principal de montagem de computadores com verificação automática de compatibilidade.
+
+### Tarefas
+- [ ] **6.1** Motor de compatibilidade (Compatibility Engine)
+  - Criar lógica de validação:
+    - Socket (CPU vs Placa-Mãe)
+    - Tipo de RAM (DDR4 vs DDR5 na Placa-Mãe)
+    - Dimensões (Tamanho da GPU vs Espaço no Gabinete)
+    - TDP (Consumo total vs Potência da Fonte)
+
+- [ ] **6.2** Interface do Montador de Build
+  - Lista de slots (CPU, Cooler, Mobo, RAM, etc.)
+  - Fluxo de seleção: ao escolher CPU, filtrar automaticamente Placas-Mãe compatíveis
+  - Resumo de preço total do build (melhor preço de cada peça)
+
+- [ ] **6.3** Compartilhamento e Exportação
+  - Gerar URL única para cada build (ex: `/build/abc-123`)
+  - Opção de exportar lista em Markdown (para fóruns/Reddit) ou PDF
+
+### Arquivos Envolvidos
+- `lib/compatibility-engine.ts` (novo)
+- `app/build/page.tsx` (novo)
+- `app/build/[id]/page.tsx` (novo)
+- `components/build/SlotItem.tsx` (novo)
+
+---
+
+## ✅ FASE 7: Assistente de IA e Consultoria (4-5 dias)
+
+### Objetivos
+Integrar inteligência artificial para auxiliar usuários na escolha de peças e resolução de dúvidas técnicas.
+
+### Tarefas
+- [ ] **7.1** Integração com LLM (OpenAI/Anthropic)
+  - Configurar rota de API para streaming de respostas
+  - Criar "System Prompt" especializado em hardware e compatibilidade PC Hub BR
+
+- [ ] **7.2** Interface do Chatbot
+  - Janela de chat flutuante e página dedicada
+  - Sugestão de "Prompts Rápidos" (ex: "Monte um PC de R$ 5000 para edição")
+
+- [ ] **7.3** Recomendações baseadas em dados
+  - Permitir que a IA acesse o catálogo de preços em tempo real para sugerir o melhor custo-benefício atual
+
+### Arquivos Envolvidos
+- `app/api/chat/route.ts` (novo)
+- `components/AiAssistant.tsx` (novo)
+- `lib/ai/prompts.ts` (novo)
 
 ---
 
@@ -210,42 +291,6 @@ Polir experiência do usuário com recursos visuais e de usabilidade.
 - [ ] Atualização automática de preços
 - [ ] Detecção de novos produtos
 - [ ] Histórico de disponibilidade
-
----
-
-## 🎯 Prioridades Técnicas
-
-### Performance
-- [ ] Implementar ISR (Incremental Static Regeneration) nas páginas de produtos
-- [ ] Cache Redis para ofertas e preços
-- [ ] Otimização de queries do Prisma (includes, selects)
-- [ ] CDN para imagens
-
-### SEO
-- [ ] Meta tags dinâmicas por produto
-- [ ] Sitemap.xml automático
-- [ ] Structured data (JSON-LD) para produtos
-- [ ] Canonical URLs
-
-### Acessibilidade
-- [ ] Navegação completa por teclado
-- [ ] Labels ARIA adequadas
-- [ ] Contraste de cores (WCAG AA)
-- [ ] Suporte a leitores de tela
-
-### Testes
-- [ ] Testes unitários (componentes críticos)
-- [ ] Testes de integração (fluxos de usuário)
-- [ ] Testes E2E (Playwright/Cypress)
-
----
-
-## 📊 Métricas de Sucesso
-
-- **Performance:** Tempo de carregamento < 2s
-- **Conversão:** Taxa de clique em ofertas > 30%
-- **Engajamento:** Usuários criam alertas (> 20% dos visitantes)
-- **Retenção:** Retorno de usuários > 40% em 30 dias
 
 ---
 
