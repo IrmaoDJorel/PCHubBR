@@ -275,34 +275,7 @@ export default function MotherboardDetailPage({ params }: { params: Promise<{ sl
         </Card>
 
         {/* Histórico */}
-        {motherboard.priceSnapshots?.length ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico de preço (30 dias)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm">
-                Preço mínimo:{" "}
-                {formatBRLFromCents(Math.min(...motherboard.priceSnapshots.map((s) => s.priceCents)))}
-                <br />
-                Preço máximo:{" "}
-                {formatBRLFromCents(Math.max(...motherboard.priceSnapshots.map((s) => s.priceCents)))}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico (30 dias)</CardTitle>
-              <CardDescription>Sem dados de histórico.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-muted-foreground">
-                Ainda não há registros de preço para esta placa-mãe.
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <PriceHistoryChart history={motherboard.priceSnapshots} />
 
         {/* Specs Técnicas */}
         <Card>

@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FavoriteProductButton } from "@/components/ui/FavoriteProductButton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { PriceHistoryChart } from "@/components/ui/price-history-chart";
 
 type GpuDetail = {
   id: string;
@@ -268,32 +269,7 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
         </Card>
 
         {/* Histórico */}
-        {gpu.priceSnapshots?.length ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico de preço (30 dias)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm">
-                Preço mínimo: {formatBRLFromCents(Math.min(...gpu.priceSnapshots.map((s) => s.priceCents)))}
-                <br />
-                Preço máximo: {formatBRLFromCents(Math.max(...gpu.priceSnapshots.map((s) => s.priceCents)))}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico (30 dias)</CardTitle>
-              <CardDescription>Sem dados de histórico.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-muted-foreground">
-                Ainda não há registros de preço para esta GPU.
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <PriceHistoryChart history={gpu.priceSnapshots} />
 
         {/* Specs Técnicas */}
         <Card>

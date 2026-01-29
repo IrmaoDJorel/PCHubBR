@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { FavoriteProductButton } from "@/components/ui/FavoriteProductButton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { PriceHistoryChart } from "@/components/ui/price-history-chart";
 
 type CpuDetail = {
   id: string;
@@ -376,32 +377,7 @@ export default function CpuDetailPage({ params }: { params: Promise<{ slug: stri
         </Card>
 
         {/* Histórico */}
-        {cpu.priceSnapshots?.length ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico de preço (30 dias)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm">
-                Preço mínimo: {formatBRLFromCents(Math.min(...cpu.priceSnapshots.map((s) => s.priceCents)))}
-                <br />
-                Preço máximo: {formatBRLFromCents(Math.max(...cpu.priceSnapshots.map((s) => s.priceCents)))}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Histórico (30 dias)</CardTitle>
-              <CardDescription>Sem dados de histórico.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-muted-foreground">
-                Ainda não há registros de preço para este processador.
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <PriceHistoryChart history={cpu.priceSnapshots} />
 
         {/* Specs Técnicas */}
         <Card>
