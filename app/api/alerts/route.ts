@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserIdFromRequest } from "@/lib/auth";
+import { AlertItemType, getAlertItemData, getProductUrl } from "@/lib/alerts";
 
 function parseBRLToCents(input: string) {
   const s = input
@@ -22,23 +23,64 @@ export async function GET(req: NextRequest) {
 
   const alerts = await prisma.priceAlert.findMany({
     where: { userId },
-    orderBy: { createdAt: "desc" },
     select: {
       id: true,
+      itemType: true,
+      itemId: true,
       targetPriceCents: true,
       isActive: true,
       triggeredAt: true,
       createdAt: true,
-      cpu: { select: { name: true, slug: true } },
+
+      // Relações legadas (para CPUs antigas)
+      cpu: {
+        select: { name: true, slug: true },
+      },
+
       events: {
+        select: {
+          priceCents: true,
+          storeName: true,
+          createdAt: true,
+        },
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { priceCents: true, storeName: true, createdAt: true },
       },
     },
+    orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(alerts);
+  // Enriquecer dados dos alertas com informações do produto
+  const enrichedAlerts = await Promise.all(
+    alerts.map(async (alert: any) => {
+      let productData: any = null;
+
+      // Se for CPU e tiver relação legada, usar ela
+      if (alert.itemType === "CPU" && alert.cpu) {
+        productData = alert.cpu;
+      } else {
+        // Buscar dados do produto baseado no tipo
+        productData = await getAlertItemData(
+          alert.itemType as AlertItemType,
+          alert.itemId
+        );
+      }
+
+      return {
+        ...alert,
+        product: productData
+          ? {
+              name: productData.name,
+              slug: productData.slug,
+              url: getProductUrl(alert.itemType as AlertItemType, productData.slug),
+              currentPrice: productData.bestPriceCents,
+            }
+          : null,
+      };
+    })
+  );
+
+  return NextResponse.json(enrichedAlerts);
 }
 
 export async function POST(req: NextRequest) {
@@ -47,36 +89,61 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
 
-  const cpuSlug = String(body?.cpuSlug || "");
-  const targetPriceRaw = String(body?.targetPrice || "");
-  const targetPriceCents = parseBRLToCents(targetPriceRaw);
+  // Novos campos
+  const itemType = String(body?.itemType || "").toUpperCase(); // "CPU" | "GPU" | "MOTHERBOARD"
+  const itemId = String(body?.itemId || "");
+  const targetPriceCents = parseInt(body?.targetPriceCents, 10);
 
-  if (!cpuSlug) return NextResponse.json({ error: "CPU inválida" }, { status: 400 });
-  if (targetPriceCents === null) return NextResponse.json({ error: "Preço alvo inválido" }, { status: 400 });
+  // Validação
+  if (!["CPU", "GPU", "MOTHERBOARD"].includes(itemType)) {
+    return NextResponse.json(
+      { error: "Tipo de produto inválido. Use: CPU, GPU ou MOTHERBOARD" },
+      { status: 400 }
+    );
+  }
 
-  const cpu = await prisma.cpu.findUnique({
-    where: { slug: cpuSlug },
-    select: { id: true },
+  if (!itemId || isNaN(targetPriceCents) || targetPriceCents <= 0) {
+    return NextResponse.json(
+      { error: "Dados inválidos (itemId ou targetPriceCents)" },
+      { status: 400 }
+    );
+  }
+
+  // Verifica se o produto existe
+  const productData = await getAlertItemData(itemType as AlertItemType, itemId);
+  if (!productData) {
+    return NextResponse.json(
+      { error: `${itemType} não encontrado(a)` },
+      { status: 404 }
+    );
+  }
+
+  // Verifica se já existe alerta ativo para este produto
+  const existingAlert = await prisma.priceAlert.findFirst({
+    where: {
+      userId,
+      itemType,
+      itemId,
+      isActive: true,
+    },
   });
 
-  if (!cpu) return NextResponse.json({ error: "CPU não encontrada" }, { status: 404 });
+  if (existingAlert) {
+    return NextResponse.json(
+      { error: "Você já possui um alerta ativo para este produto" },
+      { status: 409 }
+    );
+  }
 
-  const alert = await prisma.priceAlert.upsert({
-    where: {
-      userId_cpuId_targetPriceCents: {
-        userId,
-        cpuId: cpu.id,
-        targetPriceCents,
-      },
-    },
-    update: { isActive: true, triggeredAt: null },
-    create: { userId, cpuId: cpu.id, targetPriceCents, isActive: true },
-    select: {
-      id: true,
-      targetPriceCents: true,
+  // Cria o alerta
+  const alert = await prisma.priceAlert.create({
+    data: {
+      userId,
+      itemType,
+      itemId,
+      cpuId: itemType === "CPU" ? itemId : null, // Compatibilidade temporária
+      targetPriceCents,
       isActive: true,
-      triggeredAt: true,
-      createdAt: true,
     },
   });
 

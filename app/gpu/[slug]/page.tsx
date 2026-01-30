@@ -13,6 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { FavoriteProductButton } from "@/components/ui/FavoriteProductButton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { PriceHistoryChart } from "@/components/ui/price-history-chart";
+import { PriceAlertButton } from "@/components/PriceAlertButton"; // ✅ NOVO IMPORT
+import { useAuth } from "@/hooks/useAuth"; // ✅ NOVO IMPORT
 
 type GpuDetail = {
   id: string;
@@ -45,6 +47,7 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
   const [slug, setSlug] = useState<string>("");
   const [gpu, setGpu] = useState<GpuDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const { isLoggedIn } = useAuth(); // ✅ NOVO HOOK
 
   useEffect(() => {
     params.then((p) => setSlug(p.slug));
@@ -209,6 +212,17 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
                 <FavoriteProductButton productType="GPU" productSlug={gpu.slug} />
               </div>
             </div>
+
+            {/* ✅ NOVO: Botão de Alerta de Preço */}
+            <Separator />
+            
+            <PriceAlertButton
+              itemType="GPU"
+              itemId={gpu.id}
+              itemName={gpu.name}
+              currentPrice={bestOffer?.priceCents || 0}
+              isLoggedIn={isLoggedIn}
+            />
           </CardContent>
         </Card>
 
@@ -285,7 +299,6 @@ export default function GpuDetailPage({ params }: { params: Promise<{ slug: stri
                 <span className="font-medium">{gpu.brand}</span>
               </div>
 
-              {/* ✅ NOVO CAMPO */}
               {gpu.gpu?.chipset && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Chipset</span>

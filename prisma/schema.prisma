@@ -82,20 +82,36 @@ model User {
 }
 
 model PriceAlert {
-  id               String            @id @default(cuid())
+  id               String    @id @default(cuid())
   userId           String
-  cpuId            String
+  // Campos polimórficos (para identificar o tipo de produto)
+  itemType         AlertItemType  // Enum: CPU, GPU, MOTHERBOARD
+  itemId           String         // ID genérico do produto
+  // Campos mantidos do sistema atual
+  cpuId            String?        // Manter temporariamente para compatibilidade
+  
   targetPriceCents Int
-  isActive         Boolean           @default(true)
+  isActive         Boolean   @default(true)
   triggeredAt      DateTime?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  cpu              Cpu               @relation(fields: [cpuId], references: [id])
-  user             User              @relation(fields: [userId], references: [id])
-  events           PriceAlertEvent[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  // Relações
+  user   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cpu    Cpu?               @relation(fields: [cpuId], references: [id], onDelete: Cascade)
+  events PriceAlertEvent[]
 
-  @@unique([userId, cpuId, targetPriceCents])
+  @@index([userId, isActive])
   @@index([cpuId, isActive])
+  @@index([itemType, itemId, isActive])  // Novo índice para consultas polimórficas
+}
+
+// Novo enum para identificar tipos de alertas
+enum AlertItemType {
+  CPU
+  GPU
+  MOTHERBOARD
+  // Futuramente: RAM, SSD, CASE, COOLER, etc.
 }
 
 model PriceAlertEvent {

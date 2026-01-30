@@ -18,13 +18,22 @@ type Me = {
   createdAt: string;
 };
 
+// ✅ TIPO ATUALIZADO para suportar múltiplos tipos de produtos
 type AlertItem = {
   id: string;
+  itemType: "CPU" | "GPU" | "MOTHERBOARD"; // ✅ NOVO
+  itemId: string; // ✅ NOVO
   targetPriceCents: number;
   isActive: boolean;
   triggeredAt: string | null;
   createdAt: string;
-  cpu: { name: string; slug: string };
+  cpu?: { name: string; slug: string } | null; // ✅ Opcional (compatibilidade)
+  product?: { // ✅ NOVO: dados genéricos do produto
+    name: string;
+    slug: string;
+    url: string;
+    currentPrice: number | null;
+  } | null;
   events: Array<{ priceCents: number; storeName: string | null; createdAt: string }>;
 };
 
@@ -355,16 +364,16 @@ export default function ProfilePage() {
                     <div className="flex flex-wrap gap-2">
                       {f.slug ? (
                         <Button asChild variant="outline">
-                          <Link href={`/products/${f.slug}`}>Ver</Link>
+                          <Link href={`/products/${f.slug!}`}>Ver</Link>
                         </Button>
                       ) : null}
 
                       {f.slug ? (
                         <Button
                           variant="destructive"
-                          onClick={() => {
+                            onClick={() => {
                             const ok = confirm("Remover este favorito?");
-                            if (ok) removeFavorite(f.itemType, f.slug);
+                            if (ok) removeFavorite(f.itemType, f.slug!);
                           }}
                           disabled={loading}
                         >
@@ -381,6 +390,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
+        {/* ✅ CARD DE ALERTAS ATUALIZADO */}
         <Card>
           <CardHeader>
             <CardTitle>Meus alertas</CardTitle>
@@ -394,22 +404,45 @@ export default function ProfilePage() {
                   const lastEvent = a.events?.[0] ?? null;
                   const fired = Boolean(a.triggeredAt);
 
+                  // ✅ NOVO: Determinar nome e slug do produto (compatibilidade com alertas antigos)
+                  const productName = a.product?.name || a.cpu?.name || "Produto não disponível";
+                  const productSlug = a.product?.slug || a.cpu?.slug || null;
+                  const productUrl = a.product?.url || (productSlug ? `/products/${productSlug}` : null);
+                  const currentPrice = a.product?.currentPrice;
+
                   return (
                     <div key={a.id} className="rounded-md border p-3">
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                         <div className="space-y-1">
-                          <div className="font-medium">{a.cpu.name}</div>
-                          <div className="text-xs text-muted-foreground">Criado em {formatDateTimeBR(a.createdAt)}</div>
+                          <div className="font-medium">{productName}</div>
+                          
+                          {/* ✅ NOVO: Badges de tipo e status */}
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="secondary">{a.itemType}</Badge>
+                            {a.isActive ? (
+                              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                Ativo
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">Inativo</Badge>
+                            )}
+                            {fired ? (
+                              <Badge className="bg-blue-600">Disparado</Badge>
+                            ) : (
+                              <Badge variant="outline">Aguardando</Badge>
+                            )}
+                          </div>
+
+                          <div className="text-xs text-muted-foreground">
+                            Criado em {formatDateTimeBR(a.createdAt)}
+                          </div>
                         </div>
 
                         <div className="flex flex-wrap gap-2">
-                          {a.isActive ? (
-                            <Badge variant="secondary">Ativo</Badge>
-                          ) : (
-                            <Badge variant="outline">Inativo</Badge>
-                          )}
-                          {fired ? <Badge>Disparado</Badge> : <Badge variant="outline">Aguardando</Badge>}
                           <Badge variant="outline">Alvo: {formatBRLFromCents(a.targetPriceCents)}</Badge>
+                          {currentPrice !== null && currentPrice !== undefined && (
+                            <Badge variant="secondary">Atual: {formatBRLFromCents(currentPrice)}</Badge>
+                          )}
                         </div>
                       </div>
 
@@ -440,9 +473,12 @@ export default function ProfilePage() {
                           </Button>
                         ) : null}
 
-                        <Button asChild variant="outline">
-                          <Link href={`/products/${a.cpu.slug}`}>Ver</Link>
-                        </Button>
+                        {/* ✅ NOVO: Link dinâmico baseado no tipo de produto */}
+                        {productUrl ? (
+                          <Button asChild variant="outline">
+                            <Link href={productUrl}>Ver {a.itemType}</Link>
+                          </Button>
+                        ) : null}
 
                         <Button
                           variant="destructive"

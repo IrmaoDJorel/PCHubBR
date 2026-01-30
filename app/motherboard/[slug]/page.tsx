@@ -13,6 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { FavoriteProductButton } from "@/components/ui/FavoriteProductButton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { PriceHistoryChart } from "@/components/ui/price-history-chart";
+import { PriceAlertButton } from "@/components/PriceAlertButton"; // ✅ NOVO IMPORT
+import { useAuth } from "@/hooks/useAuth"; // ✅ NOVO IMPORT
 
 type MotherboardDetail = {
   id: string;
@@ -50,6 +52,7 @@ export default function MotherboardDetailPage({ params }: { params: Promise<{ sl
   const [slug, setSlug] = useState<string>("");
   const [motherboard, setMotherboard] = useState<MotherboardDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const { isLoggedIn } = useAuth(); // ✅ NOVO HOOK
 
   useEffect(() => {
     params.then((p) => setSlug(p.slug));
@@ -216,6 +219,17 @@ export default function MotherboardDetailPage({ params }: { params: Promise<{ sl
                 <FavoriteProductButton productType="MOTHERBOARD" productSlug={motherboard.slug} />
               </div>
             </div>
+
+            {/* ✅ NOVO: Botão de Alerta de Preço */}
+            <Separator />
+            
+            <PriceAlertButton
+              itemType="MOTHERBOARD"
+              itemId={motherboard.id}
+              itemName={motherboard.name}
+              currentPrice={bestOffer?.priceCents || 0}
+              isLoggedIn={isLoggedIn}
+            />
           </CardContent>
         </Card>
 
@@ -329,7 +343,6 @@ export default function MotherboardDetailPage({ params }: { params: Promise<{ sl
                 </div>
               )}
 
-              {/* ✅ NOVO CAMPO */}
               {motherboard.motherboard?.maxRamSpeed && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Velocidade RAM máxima</span>
@@ -351,7 +364,6 @@ export default function MotherboardDetailPage({ params }: { params: Promise<{ sl
                 </div>
               )}
 
-              {/* ✅ NOVO CAMPO */}
               {motherboard.motherboard?.wifi !== undefined && (
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Wi-Fi integrado</span>
