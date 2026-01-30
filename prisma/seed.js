@@ -319,6 +319,99 @@ async function main() {
 
   console.log(`✅ ${productSnapshots.length} snapshots criados para Products\n`);
 
+  // ============================================
+  // ✅ RECÁLCULO AUTOMÁTICO DE OFERTAS
+  // ============================================
+  console.log("🔄 Recalculando ofertas automaticamente...\n");
+
+  // Recalcular CPUs
+  const allCpus = await prisma.cpu.findMany({
+    include: { offers: { select: { priceCents: true } } },
+  });
+
+  let cpusUpdated = 0;
+  for (const cpu of allCpus) {
+    if (cpu.offers.length === 0) {
+      await prisma.cpu.update({
+        where: { id: cpu.id },
+        data: {
+          bestPriceCents: null,
+          worstPriceCents: null,
+          offerScore: null,
+          lastPriceCheck: new Date(),
+        },
+      });
+      continue;
+    }
+
+    const prices = cpu.offers.map((o) => o.priceCents);
+    const bestPrice = Math.min(...prices);
+    const worstPrice = Math.max(...prices);
+
+    let offerScore = 0;
+    if (worstPrice > 0 && worstPrice > bestPrice) {
+      offerScore = ((worstPrice - bestPrice) / worstPrice) * 100;
+    }
+
+    await prisma.cpu.update({
+      where: { id: cpu.id },
+      data: {
+        bestPriceCents: bestPrice,
+        worstPriceCents: worstPrice,
+        offerScore: offerScore,
+        lastPriceCheck: new Date(),
+      },
+    });
+
+    console.log(`  ✅ ${cpu.name} → offerScore: ${offerScore.toFixed(1)}%`);
+    cpusUpdated++;
+  }
+
+  // Recalcular Products (GPU e Motherboard)
+  const allProducts = await prisma.product.findMany({
+    include: { offers: { select: { priceCents: true } } },
+  });
+
+  let productsUpdated = 0;
+  for (const product of allProducts) {
+    if (product.offers.length === 0) {
+      await prisma.product.update({
+        where: { id: product.id },
+        data: {
+          bestPriceCents: null,
+          worstPriceCents: null,
+          offerScore: null,
+          lastPriceCheck: new Date(),
+        },
+      });
+      continue;
+    }
+
+    const prices = product.offers.map((o) => o.priceCents);
+    const bestPrice = Math.min(...prices);
+    const worstPrice = Math.max(...prices);
+
+    let offerScore = 0;
+    if (worstPrice > 0 && worstPrice > bestPrice) {
+      offerScore = ((worstPrice - bestPrice) / worstPrice) * 100;
+    }
+
+    await prisma.product.update({
+      where: { id: product.id },
+      data: {
+        bestPriceCents: bestPrice,
+        worstPriceCents: worstPrice,
+        offerScore: offerScore,
+        lastPriceCheck: new Date(),
+      },
+    });
+
+    console.log(`  ✅ ${product.name} → offerScore: ${offerScore.toFixed(1)}%`);
+    productsUpdated++;
+  }
+
+  console.log(`\n✅ Ofertas recalculadas: ${cpusUpdated} CPUs + ${productsUpdated} Products\n`);
+
   console.log("\n🎉 Seed concluído com sucesso!\n");
   console.log("📊 Resumo:");
   console.log(`  - 3 Lojas`);
@@ -330,8 +423,9 @@ async function main() {
   console.log(`  - 5 Ofertas de Placas-Mãe`);
   console.log(`  - ${cpuSnapshots.length} Snapshots de CPUs`);
   console.log(`  - ${productSnapshots.length} Snapshots de Products`);
-  console.log("\n💡 Próximo passo: Execute o job de cálculo de ofertas:");
-  console.log("   POST http://localhost:3000/api/jobs/calculate-offers\n");
+  console.log(`  - ${cpusUpdated + productsUpdated} Produtos com ofertas calculadas automaticamente ✅`);
+  console.log("\n✅ As ofertas já estão prontas para aparecer no site!");
+  console.log("   Não é mais necessário executar o job manual.\n");
 }
 
 main()

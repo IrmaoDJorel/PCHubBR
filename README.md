@@ -1,5 +1,11 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+# PCHubBR
+
+PC hardware price comparison site (CPUs, GPUs, Motherboards). Shows offers across stores, price history, alerts, and computes automatic `offerScore` for highlighting good deals.
+
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
 ## Getting Started
 
 First, run the development server:
