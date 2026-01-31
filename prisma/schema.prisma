@@ -82,36 +82,30 @@ model User {
 }
 
 model PriceAlert {
-  id               String    @id @default(cuid())
+  id               String            @id @default(cuid())
   userId           String
-  // Campos polimórficos (para identificar o tipo de produto)
-  itemType         AlertItemType  // Enum: CPU, GPU, MOTHERBOARD
-  itemId           String         // ID genérico do produto
-  // Campos mantidos do sistema atual
-  cpuId            String?        // Manter temporariamente para compatibilidade
+  
+  // Campos polimórficos para suportar CPU/GPU/MOTHERBOARD
+  itemType         AlertItemType     @default(CPU)
+  itemId           String
+  
+  // Compatibilidade legada com alertas antigos de CPU
+  cpuId            String?
   
   targetPriceCents Int
-  isActive         Boolean   @default(true)
+  isActive         Boolean           @default(true)
   triggeredAt      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   
-  // Relações
-  user   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cpu    Cpu?               @relation(fields: [cpuId], references: [id], onDelete: Cascade)
-  events PriceAlertEvent[]
+  // ✅ CORREÇÃO: Relação opcional porque cpuId é opcional
+  cpu              Cpu?              @relation(fields: [cpuId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events           PriceAlertEvent[]
 
   @@index([userId, isActive])
   @@index([cpuId, isActive])
-  @@index([itemType, itemId, isActive])  // Novo índice para consultas polimórficas
-}
-
-// Novo enum para identificar tipos de alertas
-enum AlertItemType {
-  CPU
-  GPU
-  MOTHERBOARD
-  // Futuramente: RAM, SSD, CASE, COOLER, etc.
+  @@index([itemType, itemId, isActive])
 }
 
 model PriceAlertEvent {
@@ -120,7 +114,7 @@ model PriceAlertEvent {
   priceCents Int
   storeName  String?
   createdAt  DateTime   @default(now())
-  alert      PriceAlert @relation(fields: [alertId], references: [id])
+  alert      PriceAlert @relation(fields: [alertId], references: [id], onDelete: Cascade)
 
   @@index([alertId, createdAt])
 }
@@ -251,6 +245,13 @@ model Motherboard {
   usbPorts    Json
   createdAt   DateTime @default(now())
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// ✅ NOVO: Enum específico para alertas de preço
+enum AlertItemType {
+  CPU
+  GPU
+  MOTHERBOARD
 }
 
 enum FavoriteItemType {

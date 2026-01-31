@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
               name: productData.name,
               slug: productData.slug,
               url: getProductUrl(alert.itemType as AlertItemType, productData.slug),
-              currentPrice: productData.bestPriceCents,
+              currentPrice: productData.bestPriceCents ?? null, // ✅ AJUSTE
             }
           : null,
       };
@@ -205,4 +205,4 @@ export async function DELETE(req: NextRequest) {
   await prisma.priceAlert.delete({ where: { id: alertId } });
 
   return NextResponse.json({ ok: true });
-}
+} 
